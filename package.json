@@ -1,0 +1,23 @@
+{
+  "name": "simulation-principle-vue",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build-reactivity": "node scripts/build.js reactivity -f esm",
+    "build-shared": "node scripts/build.js shared -f esm"
+  },
+  "keywords": [],
+  "author": "Dante-Master <396840617@qq.com>",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "esbuild": "^0.25.4",
+    "minimist": "^1.2.8"
+  },
+  "dependencies": {
+    "vue": "^3.5.14"
+  }
+}
