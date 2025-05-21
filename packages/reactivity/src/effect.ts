@@ -1,23 +1,30 @@
+import { DirtyLevels } from './constants'
 import type { depMapType } from './reactiveEffect'
+import { __isObject } from '@vue/shared'
 
 export let activeEffect: null | ReactiveEffect = null
-
-const preCleanEffect = (effect: ReactiveEffect) => {
-  effect._trackId++ // 每次执行 ID + 1, 如果当前同一个 effect 执行, 那么 ID 就是相同的
-  effect._depsLength = 0
-}
 
 /**
  * 响应式副作用类
  */
 export class ReactiveEffect {
-  // parent: null | ReactiveEffect
+  // parent: null | ReactiveEffect Vue 3.4 之前使用
   // fn 副作用函数
-  // schedule 更新副作用的函数
+  // scheduler 更新副作用的函数
   active: boolean = true // 标识当前创建的 effect 实例是响应式的
   _trackId: number = 0 // 记录当前 effect 执行次数(副作用函数执行次数) (防止一个"属性"在当前 effect 副作用中多次依赖收集)
   deps: depMapType[] = [] // 存放 effect 的依赖收集器集合的数组
-  _depsLength: number = 0 // 存放 effect 的依赖收集器集合的数组索引
+  _depsLength: number = 0 // 存放 effect 的依赖收集器集合的数组索引, 可用来判断副作用执行时最新的依赖收集与旧的做简易化 DIFF 算法依赖对比
+  _running: number = 0 // 该副作用是否正在执行 run 方法
+  _dirtyLevel: number = DirtyLevels.Dirty // 脏值级别(计算属性使用)
+  // ---------- 控制计算属性是否为脏值标识 ----------
+  get dirty() {
+    return this._dirtyLevel === DirtyLevels.Dirty
+  }
+  set dirty(value) {
+    this._dirtyLevel = value ? DirtyLevels.Dirty : DirtyLevels.NoDirty
+  }
+  // ---------- 控制计算属性是否为脏值标识 ----------
   run() {
     // 当运行时需要把代理对象的属性 和 effect 副作用关联起来, 准备当前的 effect 实例
 
@@ -25,6 +32,9 @@ export class ReactiveEffect {
     if (!this.active) {
       return this.fn()
     }
+
+    // 用于计算属性, 计算属性 effect 执行后, 设置此标识为不是脏的
+    this._dirtyLevel = DirtyLevels.NoDirty
 
     /**
      * !!!!!!!!!!!!  注意: 前置步骤的行为是为了把"响应式对象的属性"和"effect 实例(最终执行副作用函数)"给正确关联起来, 防止嵌套 !!!!!!!!!!!!
@@ -64,22 +74,27 @@ export class ReactiveEffect {
     let lastEffect = activeEffect
     activeEffect = this
     try {
-      // effect 重新执行前, 将上一次的依赖清空
+      // effect 重新执行前, 将上一次的依赖相关数据清空
       preCleanEffect(this)
+      this._running++
       // 执行副作用函数, 准备收集使用到的依赖
       return this.fn()
     } finally {
+      postCleanEffect(this)
+      this._running--
       activeEffect = lastEffect
       lastEffect = null
     }
   }
-  static of(fn: Function, schedule: Function) {
-    return new ReactiveEffect(fn, schedule)
+  static of(fn: Function, scheduler: Function) {
+    return new ReactiveEffect(fn, scheduler)
   }
   // 构造函数形参中声明 public 直接会再实例上创建对应的属性
-  constructor(public fn: Function, public schedule: Function) {
+  // fn: 副作用函数
+  // scheduler: 调度器(操作执行 run 方法进行渲染)
+  constructor(public fn: Function, public scheduler: Function) {
     // this.fn = fn
-    // this.schedule = schedule
+    // this.scheduler = scheduler
   }
 }
 
@@ -89,14 +104,56 @@ export class ReactiveEffect {
  * @param options 
  * @returns 
  */
-export const effect = (fn: Function, options?: Object) => {
+export const effect = (fn: Function, options?: Record<string, any>) => {
   // 将使用者的函数变成响应式的函数, 所以存起来, 直接定义类生成实例管理
   const _effect = ReactiveEffect.of(fn, () => {
+    console.log('执行 effect 内置定义的 scheduler 方法, 直接 effect.run()')
     _effect.run()
   })
   // 默认让 effect 副作用执行一次
   _effect.run()
-  return _effect
+
+  // 合并副作用实例对应参数选项
+  if (__isObject(options)) {
+    Object.assign(_effect, options)
+  }
+
+  const runner = _effect.run.bind(_effect)
+  // run 方法上可以获取到对应的副作用实例
+  runner.effect = _effect
+  // 外部可以自己触发 run
+  return runner
+}
+
+/**
+ * 预先清空上一轮依赖相关数据
+ * @param effect 
+ */
+const preCleanEffect = (effect: ReactiveEffect) => {
+  // 每次执行 ID + 1, 如果当前同一个 effect 执行, 那么 ID 就是相同的
+  effect._trackId++
+  // 恢复计数, 用于副作用依赖收集对比每一个 Key 与上一轮的 Key
+  effect._depsLength = 0
+}
+
+/**
+ * 后置清理无用的依赖相关数据
+ * @param effect 
+ */
+const postCleanEffect = (effect: ReactiveEffect) => {
+  // [flag, name, aaa, bbb, ccc] 上一轮
+  //              ∨
+  // [flag, age, aaa, bbb, ccc] 当前轮(替换副作用依赖后)
+  //              ∨
+  // [flag, age] 最终保留
+  if (effect.deps.length > effect._depsLength) {
+    for (let i = effect._depsLength; i < effect.deps.length; i++) {
+      // 删除依赖收集器集中多余 Key 的依赖
+      cleanDepEffect(effect.deps[i], effect)
+    }
+    // 更新依赖收集器集长度, 清除多余的收集器
+    effect.deps.length = effect._depsLength
+  }
 }
 
 /**
@@ -118,7 +175,7 @@ const cleanDepEffect = (dep, effect) => {
  * @param dep 当前依赖收集的收集器
  */
 export const trackEffect = (effect: ReactiveEffect, dep: depMapType) => {
-  // 3.4 采用定义 _trackId 的方式来过滤重复依赖收集(可能与), 重新收集依赖, 把不需要的移除
+  // 3.4 采用定义 _trackId 的方式来过滤重复依赖收集, 重新收集依赖, 把不需要的移除
   if (dep.get(effect) !== effect._trackId) {
     // 当前 effect 和 efffect 集关联起来
     // 3.4 之前是 Set 数据机构
@@ -158,11 +215,16 @@ export const trackEffect = (effect: ReactiveEffect, dep: depMapType) => {
   }
 }
 
+/**
+ * 触发依赖收集器所有依赖更新
+ * @param dep 
+ */
 export const triggerEffects = (dep: depMapType) => {
   for(const effect of dep.keys()) {
-    if (effect.schedule) {
+    // effect 副作用实例不是正在执行 (解决在触发更新时副作用函数内又再次改变数据进行更新的死循环)
+    if (!effect._running && effect.scheduler) {
       // 生成 effect 副作用实例时会传递"更新函数", 这个"更新函数"执行 effect.run 方法, 就调用副作用函数
-      effect.schedule()
+      effect.scheduler()
     }
   }
 }

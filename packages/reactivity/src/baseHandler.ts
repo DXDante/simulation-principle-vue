@@ -1,15 +1,11 @@
+import { __isObject } from '@vue/shared'
 import { track, trigger } from './reactiveEffect'
+import { reactive } from './reactive'
+import { ReactiveFlags } from './constants'
 
 /**
  * 基础处理器
  */
-
-/**
- * 检测是否是代理对象的属性集
- */
-export enum ReactiveFlags {
-  IS_REACTIVE = '__v_isReactive'
-}
 
 /**
  * 代理对象处理器
@@ -25,7 +21,14 @@ export const proxyHandlers: ProxyHandler<object> = {
 
     // recevier 是代理对象, 如果使用 target[key] 返回会导致如果被代理的对象有 get xx 的属性访问器中有 this.xx 访问其他属性时导致部分依赖收集丢失
     // 如果使用 recevier[key] 返回会导致 get 方法死循环, 因为重复在访问代理对象的属性
-    return Reflect.get(target, key, recevier)
+    const res = Reflect.get(target, key, recevier)
+
+    // 懒代理, 当访问的属性是对象时, 就需要再次代理, 即递归代理 (Vue 2 是通过 Object.defineProperties 直接递归设置初始数据属性为响应式)
+    if (__isObject(res)) {
+      return reactive(res)
+    }
+
+    return res
   },
   set(target, key, value, recevier) {
     const oldValue = target[key]

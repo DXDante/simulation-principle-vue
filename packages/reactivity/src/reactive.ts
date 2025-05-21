@@ -1,5 +1,6 @@
-import { proxyHandlers, ReactiveFlags } from './baseHandler'
+import { proxyHandlers } from './baseHandler'
 import { __isObject } from '@vue/shared'
+import { ReactiveFlags } from './constants'
 
 /**
  * 代理对象缓存集 (被代理的对象 和 代理对象的映射表)
@@ -33,4 +34,15 @@ const createReactiveObject = (target) => {
 
 export const reactive = (target) => {
   return createReactiveObject(target)
+}
+
+// export const shallowReactive = () => {}
+
+/**
+ * 将数据转换为 reactive
+ * @param value 
+ * @returns 
+ */
+export const toReactive = (value) => {
+  return __isObject(value) ? reactive(value) : value
 }

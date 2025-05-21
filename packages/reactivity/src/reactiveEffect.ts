@@ -17,7 +17,7 @@ const targetMap = new WeakMap<targetMapType>()
  * @param key 源码中没有, 在调试中方便看到清理的哪个属性
  * @returns 
  */
-const createDep = (cleanup: Function, key?: string | symbol): depMapType => {
+export const createDep = (cleanup: Function, key?: string | symbol): depMapType => {
   // // 3.4 之前使用的是 Set
   // return new Set()
 
