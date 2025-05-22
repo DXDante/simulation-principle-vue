@@ -16,25 +16,30 @@ export class ReactiveEffect {
   deps: depMapType[] = [] // 存放 effect 的依赖收集器集合的数组
   _depsLength: number = 0 // 存放 effect 的依赖收集器集合的数组索引, 可用来判断副作用执行时最新的依赖收集与旧的做简易化 DIFF 算法依赖对比
   _running: number = 0 // 该副作用是否正在执行 run 方法
-  _dirtyLevel: number = DirtyLevels.Dirty // 脏值级别(计算属性使用)
-  // ---------- 控制计算属性是否为脏值标识 ----------
+  // ---------- 计算属性使用 判断当前状态是否是脏值(有几个级别, 目前示例代码使用到 2 个) ----------
+  _dirtyLevel: number = DirtyLevels.Dirty // 脏值级别
+  // ---------- 计算属性使用 判断当前状态是否是脏值(有几个级别, 目前示例代码使用到 2 个) ----------
+  // ---------- 计算属性使用 控制计算属性是否为脏值标识 ----------
   get dirty() {
     return this._dirtyLevel === DirtyLevels.Dirty
   }
   set dirty(value) {
     this._dirtyLevel = value ? DirtyLevels.Dirty : DirtyLevels.NoDirty
   }
-  // ---------- 控制计算属性是否为脏值标识 ----------
+  // ---------- 计算属性使用 控制计算属性是否为脏值标识 ----------
   run() {
     // 当运行时需要把代理对象的属性 和 effect 副作用关联起来, 准备当前的 effect 实例
+
+    // ---------- 计算属性使用 ----------
+    // 用于计算属性, 计算属性 effect 执行后, 设置此标识为不是脏的
+    // this._dirtyLevel = DirtyLevels.NoDirty
+    this.dirty = false // 可使用属性访问器设置值, 最终再设置 _dirtyLevel 的值
+    // ---------- 计算属性使用 ----------
 
     // 标识不是响应式的, 直接调用副作用执行, 不会去收集依赖
     if (!this.active) {
       return this.fn()
     }
-
-    // 用于计算属性, 计算属性 effect 执行后, 设置此标识为不是脏的
-    this._dirtyLevel = DirtyLevels.NoDirty
 
     /**
      * !!!!!!!!!!!!  注意: 前置步骤的行为是为了把"响应式对象的属性"和"effect 实例(最终执行副作用函数)"给正确关联起来, 防止嵌套 !!!!!!!!!!!!
@@ -46,7 +51,7 @@ export class ReactiveEffect {
      */
     // activeEffect = this
     // try {
-    //   return this.fn() 
+    //   return this.fn()
     // } finally {
     //   activeEffect = null
     // }
@@ -221,6 +226,15 @@ export const trackEffect = (effect: ReactiveEffect, dep: depMapType) => {
  */
 export const triggerEffects = (dep: depMapType) => {
   for(const effect of dep.keys()) {
+    // ---------- 计算属性使用 ----------
+    // 当前这个值是不脏的, 但是触发了更新要将值变为脏值
+    // 也可以使用这个条件判断 !effect.dirty
+    if (/*effect._dirtyLevel < DirtyLevels.Dirty*/!effect.dirty) {
+      // effect._dirtyLevel = DirtyLevels.Dirty
+      effect.dirty = true // 可使用属性访问器设置值, 最终再设置 _dirtyLevel 的值
+    }
+    // ---------- 计算属性使用 ----------
+
     // effect 副作用实例不是正在执行 (解决在触发更新时副作用函数内又再次改变数据进行更新的死循环)
     if (!effect._running && effect.scheduler) {
       // 生成 effect 副作用实例时会传递"更新函数", 这个"更新函数"执行 effect.run 方法, 就调用副作用函数

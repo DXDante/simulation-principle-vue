@@ -1,4 +1,5 @@
 import type { depMapType } from './reactiveEffect'
+import type { ComputedRefImpl } from './computed'
 import { createDep } from './reactiveEffect'
 import { activeEffect, trackEffect, triggerEffects } from './effect'
 import { toReactive } from "./reactive"
@@ -63,7 +64,7 @@ export const ref = (value): RefImpl => {
  * @param ref ref 实例
  * @returns 
  */
-const trackRefValue = (ref: RefImpl) => {
+export const trackRefValue = (ref: RefImpl | ComputedRefImpl) => {
   if (!activeEffect) { return }
   // 把当前的 effect 副作用实例 和 依赖收集器关联起来
   trackEffect(activeEffect, (ref.dep = ref.dep || createDep(() => ref.dep = null, 'refKey')))
@@ -73,11 +74,10 @@ const trackRefValue = (ref: RefImpl) => {
  * Ref 依赖更新
  * @param ref ref 实例
  */
-const triggerRefValue = (ref: RefImpl) => {
+export const triggerRefValue = (ref: RefImpl | ComputedRefImpl) => {
   const { dep } = ref
-  if (dep) {
-    triggerEffects(dep)
-  }
+  if (!dep) { return }
+  triggerEffects(dep)
 }
 
 /**
