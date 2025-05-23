@@ -7,7 +7,8 @@
   "main": "index.js",
   "scripts": {
     "build-reactivity": "node scripts/build.js reactivity -f esm",
-    "build-shared": "node scripts/build.js shared -f esm"
+    "build-shared": "node scripts/build.js shared -f esm",
+    "build-runtime-dom": "node scripts/build.js runtime-dom -f esm"
   },
   "keywords": [],
   "author": "Dante-Master <396840617@qq.com>",

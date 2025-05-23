@@ -1,0 +1,26 @@
+{
+  "name": "@vue/runtime-dom",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "module": "dist/runtime-dom.esm-bundler.js",
+  "unpkg": "dist/runtime-dom.global.js",
+  "buildOptions": {
+    "name": "VueRuntimeDom",
+    "formats": [
+      "esm-bundler",
+      "esmbrowser",
+      "cjs",
+      "global"
+    ]
+  },
+  "scripts": {},
+  "keywords": [],
+  "author": "Dante-Master <396840617@qq.com>",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "dependencies": {
+    "@vue/reactivity": "workspace:*",
+    "@vue/shared": "workspace:*"
+  }
+}
