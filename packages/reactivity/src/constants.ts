@@ -2,7 +2,8 @@
  * 检测是否是代理对象的属性集
  */
 export enum ReactiveFlags {
-  IS_REACTIVE = '__v_isReactive'
+  IS_REACTIVE = '__v_isReactive',
+  IS_REF = '__v_isRef'
 }
 
 export enum DirtyLevels {

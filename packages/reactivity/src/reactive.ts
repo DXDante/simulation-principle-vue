@@ -46,3 +46,11 @@ export const reactive = (target) => {
 export const toReactive = (value) => {
   return __isObject(value) ? reactive(value) : value
 }
+
+/**
+ * 是否是 reactive 的代理对象
+ * @param value 
+ */
+export const isReactive = (value) => {
+  return value && !!(value[ReactiveFlags.IS_REACTIVE])
+}

@@ -91,6 +91,14 @@ export class ReactiveEffect {
       lastEffect = null
     }
   }
+  // 停止响应式激活, 把状态都设置为初始状态, 再执行 run 方法时直接执行副作用函数
+  stop() {
+    if (this.active) {
+      this.active = false
+      preCleanEffect(this)
+      postCleanEffect(this)
+    }
+  }
   static of(fn: Function, scheduler: Function) {
     return new ReactiveEffect(fn, scheduler)
   }

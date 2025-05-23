@@ -127,3 +127,12 @@ export const proxyRefs = (objectWithRef) => {
     }
   })
 }
+
+/**
+ * 是否是 Ref
+ * @param value 
+ * @returns 
+ */
+export const isRef = (value) => {
+  return value.constructor === RefImpl
+}

@@ -2,7 +2,7 @@
  * 是否为 Array
  */
 export const __isArray = (p: unknown): boolean => {
-  return !!(typeof p === 'object' && p !== null && p.constructor == Array)
+  return !!(typeof p === 'object' && p !== null && p.constructor === Array)
 }
 
 /**
@@ -24,7 +24,7 @@ export const __isFunction = (p: unknown): boolean => {
  * 是否为 Object
  */
 export const __isObject = (p: unknown): boolean => {
-  return !!(typeof p === 'object' && p !== null && p.constructor == Object)
+  return !!(typeof p === 'object' && p !== null && p.constructor === Object)
 }
 
 /**
