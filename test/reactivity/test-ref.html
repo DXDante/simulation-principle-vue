@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ref 测试</title>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // 原生的
+  // import { effect, ref, toRef, toRefs, proxyRefs } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+
+  // 自己的
+  import { effect, ref, toRef, toRefs, proxyRefs } from '../../packages/reactivity/dist/reactivity.js'
+
+  // const isDebug = ref(false)
+  // console.log('isDebug:', isDebug)
+
+  const dataState = ref({ data: { info: 'AAA' } })
+
+  effect(() => {
+    app.innerHTML = dataState.value.data.info
+  })
+
+  setTimeout(() => {
+    // isDebug.value = true
+    // setTimeout(() => {
+    //   isDebug.value = false
+    // }, 2000);
+
+    dataState.value = { data: { info: 'BBB' } }
+    setTimeout(() => {
+      dataState.value.data.info = 'CCC'
+    }, 2000);
+  }, 2000);
+
+  // // toRef
+  // const dataState2 = reactive({ a: 'ABC' })
+  // const aRef = toRef(dataState2, 'a')
+  // console.log('aRef.value:', aRef.value)
+  // aRef.value = 'AABBCC'
+  // console.log('aRef.value = "AABBCC", dataState2.a:', dataState2.a)
+
+  // // toRefs
+  // const dataState3 = reactive({ name: 'Dante', age: 33, height: 183 })
+  // const { name: dataState3Name, age: dataState3Age, height: dataState3Height } = toRefs(dataState3)
+  // console.log('dataState3Name:', dataState3Name, '\ndataState3Age:', dataState3Age, '\ndataState3Height:', dataState3Height)
+
+  // // proxyRefs
+  // const dataState4 = reactive({ name: 'Dante', age: 33 })
+  // const dataState4Proxy = proxyRefs({ ...toRefs(dataState4), height: 10 })
+  // console.log('dataState4Proxy.age:', dataState4Proxy.age)
+  // dataState4Proxy.age++
+  // effect(() => {
+  //   console.log('dataState4Proxy.age++ 后访问 dataState4.age:', dataState4.age)
+  //   console.log('height:', dataState4Proxy.height)
+  // })
+  // // 直接在 proxyRefs 添加的字段不具备响应式
+  // setTimeout(() => { dataState4Proxy.height = 25 }, 2000);
+</script>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Computed 测试</title>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // 原生的
+  // import { reactive, effect, computed } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+
+  // 自己的
+  import { reactive, effect, computed } from '../../packages/reactivity/dist/reactivity.js'
+
+  const name = reactive({ firstName: 'D', lastName: 'ante' })
+  const fullName = computed({
+    get(value) {
+      console.log(`fullName 计算属性副作用函数执行, 上一轮的值:${ value }`)
+      return `${ name.firstName }${ name.lastName }`
+    },
+    set(value) {
+      if (typeof value !== 'string') { return }
+      name.firstName = value.substr(0, 1)
+      name.lastName = value.substr(1)
+    }
+  })
+
+  effect(() => {
+    app.innerHTML = `计算属性的值:${ fullName.value } | 原始值:${ name.firstName } & ${ name.lastName } | fullName.value:${ fullName.value }`
+
+    // console.log('fullName(computed):', fullName.value)
+    // console.log('fullName(computed):', fullName.value)
+    // console.log('fullName(computed):', fullName.value)
+  })
+
+  setTimeout(() => {
+    // name.lastName = 'ark'
+    // fullName.value = 'Dante' // 赋相同的值
+    fullName.value = 'Jack'
+  }, 2000);
+</script>
+</html>

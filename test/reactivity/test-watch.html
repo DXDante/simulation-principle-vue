@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch 测试</title>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // 原生的
+  // import { reactive, effect, ref, computed, watch, watchEffect } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+
+  // 自己的
+  import { reactive, effect, ref, computed, watch, watchEffect } from '../../packages/reactivity/dist/reactivity.js'
+
+  const state = reactive({
+    name: 'Dante',
+    age: 33,
+    info: {
+      address: '成都市',
+      hobby: '打游戏、飙车'
+    }
+  })
+  const nameRef = ref('Dante')
+  const danteRef = ref({ name: 'Dante', age: 33, info: { address: '成都市' } })
+  const search = ref('')
+
+  // watch(state, (oldValue, newValue) => {
+  //   console.log('old:', oldValue)
+  //   console.log('new:', newValue)
+  // }, {
+  //   deep: true
+  // })
+
+  // watch(nameRef, (oldValue, newValue) => {
+  //   console.log('old:', oldValue)
+  //   console.log('new:', newValue)
+  // }, {
+  //   immediate: true
+  // })
+
+  // watch(() => state.info.hobby, (oldValue, newValue) => {
+  //   console.log('old:', oldValue)
+  //   console.log('new:', newValue)
+  // })
+
+  // // TODO: ref 放置的是对象目前无法做到监听下面的属性, 需自己改造
+  // watch(danteRef, (oldValue, newValue) => {
+  //   console.log('old:', oldValue)
+  //   console.log('new:', newValue)
+  // })
+
+  // watchEffect(() => {
+  //   console.log('监听副作用函数就自动监听使用到的数据, name:', state.name, ', age:', state.age)
+  // })
+
+  // // 失活 watch
+  // const unwatch = watch(nameRef, (oldValue, newValue) => {
+  //   console.log('old:', oldValue)
+  //   console.log('new:', newValue)
+  // }, {
+  //   immediate: true
+  // })
+  // unwatch()
+
+  // ---------------------------------------- 异步返回时间差测试 ----------------------------------------
+  // 第 1 次 2000ms 后返回 2000, 第 2 次 1000ms 后返回 1000, 最终正确的应该是渲染第 2 次返回的结果, 但是不用以下 flag 相关操作则把第 1 次的作为最后的渲染了
+  let timeout = 3000
+  let queue = []
+  const getData = (timer) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve(timer)
+      }, timer);
+    })
+  }
+
+  watch(search, async (oldValue, newValue, onCleanup) => {
+    let flag = true
+
+    // // 每次发送请求前把上一轮 flag 置位 false, 就不渲染了
+    // queue.forEach(fn => fn())
+    // queue.push(() => flag = false)
+
+    timeout -= 1000
+
+    // 清理之后的操作, 类似于上方 queue 每次存入得清理函数一个道理
+    // 下一次执行副作用时, 调用上一次副作用执行存入的后续逻辑
+    onCleanup(() => {
+      flag = false
+    })
+
+    // 每调用一次请求, 时间减少 1000ms
+    const res = await getData(timeout)
+
+    if (flag) {
+      app.innerHTML = res
+    }
+  }, { flush: 'sync' })
+  // ---------------------------------------- 异步返回时间差测试 ----------------------------------------
+
+  setTimeout(() => {
+    // // state.name = 'Jack'
+    // console.log('执行代码:state.info.hobby = "打游戏、飙车、极限运动"')
+    // state.info.hobby = '打游戏、飙车、极限运动'
+
+    // nameRef.value = 'Jack'
+
+    // danteRef.value.name = 'Jack'
+
+    // watchEffect
+    // state.name = 'Jack'
+    // state.age++
+
+    // 异步返回时间差测试
+    search.value = 'aaa'
+    search.value = 'bbb'
+  }, 2000);
+</script>
+</html>

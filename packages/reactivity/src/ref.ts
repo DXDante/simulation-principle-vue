@@ -19,10 +19,7 @@ class RefImpl {
   set value(newValue) {
     if (newValue !== this.rawValue) {
       this.rawValue = newValue
-      // 课件代码 (有 BUG, 如果这里赋值为对象类型, 则导致下一次再修改对象下属性的值不会触发依赖更新, 应该再次使用 toReactive 代理)
-      // this._value = newValue
-
-      // 自己优化的代码
+      // 如果值是对象应该转换为 reactive
       this._value = toReactive(newValue)
       triggerRefValue(this)
     }
@@ -31,6 +28,7 @@ class RefImpl {
     return new RefImpl(value)
   }
   constructor(public rawValue) {
+    // 如果值是对象应该转换为 reactive
     this._value = toReactive(rawValue)
   }
 }
