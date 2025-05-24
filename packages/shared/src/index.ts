@@ -81,3 +81,5 @@ export const __isUndefined = (p: unknown): boolean => {
 export const __isStringNumber = (p: unknown): boolean => {
   return !!(typeof p === 'string' && !isNaN(Number(p)))
 }
+
+export * from './shapeFlags'

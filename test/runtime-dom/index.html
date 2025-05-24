@@ -4,14 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>runtime-dom</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
 </head>
 <body>
   <div id="app"></div>
 </body>
 <script type="module">
-  import { createRenderer, render, h } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
-
-  import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  // import { createRenderer, render, h } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  import { /*renderOptions, */render, h } from '../../packages/runtime-dom/dist/runtime-dom.js'
 
   // runtime-dom 他的作用就是提供 DOM-API (系列操作 DOM 的 API 方法)
   // @vue/runtime-dom -- 基于 --> @vue/runtime-core -- 基于 --> @vue/reactivity
@@ -21,11 +22,28 @@
   // 3) h 方法可以创建一个虚拟 dom (type, propsOrChildren, children)
 
   // 虚拟 DOM 节点
-  let h1VNode = h(
-    'h1',
+  let h1VNode1 = h(
+    'div',
     {
       style: {
         color: '#ea5413'
+      },
+      class: 'custom-title',
+      onClick() {
+        console.log('控制台输出:', prompt('将信息打印至控制台'))
+      },
+      'data-index': 0
+    },
+    [
+      h('span', 'Dante'),
+      h('span', 'Master'),
+    ]
+  )
+  let h1VNode2 = h(
+    'p',
+    {
+      style: {
+        color: '#11171c'
       },
       class: 'custom-title',
       onClick() {
@@ -55,8 +73,30 @@
   //     container.appendChild(el)
   //   }
   // })
-  // 自定义渲染器
-  const renderer = createRenderer(renderOptions)
-  renderer.render(h1VNode, app)
+
+  // // 自定义渲染器
+  // const renderer = createRenderer(renderOptions)
+  // renderer.render(h1VNode, app)
+
+  // 自定义方法
+  render(h1VNode1, app)
+
+  // VNode 创建形式
+  // const vnode = h('div')
+  // const vnode = h('div', h('span'))
+  // const vnode = h('div', {
+  //   style: { color: 'red' }
+  // }, h('span'))
+  // const vnode = h('div', [h('span'), h('span')])
+  // const vnode = h('div', { }, [h('span'), h('span')])
+  // const vnode = h('div', { }, [h('span'), h('span')], [h('span'), h('span')])
+  // const vnode = h('div', { }, h('span'), h('span'))
+  // const vnode = h('div', { }, h('span'), h('span'), h('span'))
+  // console.log('vnode:', vnode)
+
+  setTimeout(() => {
+    render(h1VNode2, app)
+    // render(null, app)
+  }, 2000);
 </script>
 </html>
