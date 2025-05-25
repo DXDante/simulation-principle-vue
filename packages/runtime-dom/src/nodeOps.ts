@@ -3,7 +3,7 @@
  */
 
 export const nodeOps = {
-  // 插入 (如果第三个元素不传递 === appendChild)
+  // 插入 (anchor 表示插入到这个元素之前, 如果不传递作用 === appendChild)
   insert: (el, parent, anchor) => parent.insertBefore(el, anchor || null),
   // 移出元素
   remove: (el) => el.parentNode && el.parentNode.removeChild(el),

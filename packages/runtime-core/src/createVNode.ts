@@ -12,9 +12,9 @@ export const isSameVnode = (n1, n2) => {
 
 /**
  * 创建 Virtual NODE
- * @param type 
- * @param props 
- * @param children? 
+ * @param type 元素类型 (比如 div, p)
+ * @param props 元素属性 (比如 class, style, 其他的 attribute 和 事件)
+ * @param children? 数组节点 / 文本节点, 如果是单独的节点, h 方法内会包裹一层数组传递到这
  * @param patchFlag? 
  */
 export const createVNode = (type, props, children?, patchFlag?) => {

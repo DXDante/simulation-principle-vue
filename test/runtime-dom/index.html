@@ -21,37 +21,61 @@
   // 2) render 用内置的渲染器来进行渲染 (渲染 dom 元素的)
   // 3) h 方法可以创建一个虚拟 dom (type, propsOrChildren, children)
 
-  // 虚拟 DOM 节点
+  // // 虚拟 DOM 节点
+  // let h1VNode1 = h(
+  //   'div',
+  //   {
+  //     style: { color: '#11171c' },
+  //     class: 'info',
+  //     onClick() { console.log('控制台输出:', prompt('将信息打印至控制台')) },
+  //     'data-index': 0
+  //   },
+  //   'Dante-Master'
+  //   // [
+  //   //   h('span', 'Dante'),
+  //   //   h('span', '-'),
+  //   //   h('span', 'Master'),
+  //   // ]
+  // )
+  // let h1VNode2 = h(
+  //   'div',
+  //   {
+  //     style: { color: '#ea5413' },
+  //     class: '',
+  //     onClick() { console.log('控制台输出:', prompt('将信息打印至控制台')) },
+  //     'data-index': 0
+  //   },
+  //   // 'Jack-Master'
+  //   [
+  //     h('span', 'Jack'),
+  //     h('span', '-'),
+  //     h('span', 'Master'),
+  //   ]
+  // )
+
+  // Diff 算法比对
   let h1VNode1 = h(
     'div',
     {
-      style: {
-        color: '#ea5413'
-      },
-      class: 'custom-title',
-      onClick() {
-        console.log('控制台输出:', prompt('将信息打印至控制台'))
-      },
-      'data-index': 0
+      style: { color: '#11171c', fontSize: '30px' },
     },
     [
-      h('span', 'Dante'),
-      h('span', 'Master'),
+      h('span', { key: 'A' }, 'A'),
+      h('span', { key: 'B' }, 'B'),
+      // h('span', { key: 'C' }, 'C')
     ]
   )
   let h1VNode2 = h(
-    'p',
+    'div',
     {
-      style: {
-        color: '#11171c'
-      },
-      class: 'custom-title',
-      onClick() {
-        console.log('控制台输出:', prompt('将信息打印至控制台'))
-      },
-      'data-index': 0
+      style: { color: '#11171c', fontSize: '30px' }
     },
-    'Dante Master'
+    [
+      h('span', { key: 'A' }, 'A'),
+      h('span', { key: 'B' }, 'B'),
+      h('span', { key: 'C' }, 'C'),
+      // h('span', { key: 'D' }, 'D')
+    ]
   )
 
   // // 内置的渲染器
@@ -97,6 +121,6 @@
   setTimeout(() => {
     render(h1VNode2, app)
     // render(null, app)
-  }, 2000);
+  }, 4000);
 </script>
 </html>
