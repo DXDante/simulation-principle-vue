@@ -190,7 +190,8 @@ export const createRenderer = (renderOptions) => {
     let e2 = c2.length - 1 // 新 数组的尾部索引
 
     // ------------------------------------------------------------ 第一步: 先比对头尾相同的部分做更新 ------------------------------------------------------------ //
-    // 从头比对: 有任何一方循环结束了, 就要终止比较, 终止前把相同节点就去更新, 其子节点就递归的如此处理
+    // 从头比对:
+    // 有任何一方循环结束了, 就要终止比较, 终止前把相同节点就去更新, 其子节点就递归的如此处理
     while(i <= e1 && i <= e2) {
       const n1 = c1[i]
       const n2 = c2[i]
@@ -207,7 +208,9 @@ export const createRenderer = (renderOptions) => {
     // 到 D 的位置终止了
     //    C
     // D, E
-    // 从尾比对(新旧数组最后节点下标开始依次递减): 有任何一方循环结束了, 就要终止比较, 终止前把相同节点就去更新, 其子节点就递归的如此处理
+
+    // 从尾比对:
+    // 有任何一方循环结束了, 就要终止比较, 终止前把相同节点就去更新, 其子节点就递归的如此处理 (新旧数组最后节点下标开始依次递减)
     while(i <= e1 && i <= e2) {
       const n1 = c1[e1]
       const n2 = c2[e2]
@@ -229,6 +232,7 @@ export const createRenderer = (renderOptions) => {
     // [A, B, C]    ----- 尾部追加 -----
     //    [A, B]    i = 0, e1 = -1, e2 = 0   -->   i > e1 && i <= e2
     // [C, A, B]    ----- 头部插入 -----
+
     // 新的多
     if (i > e1) {
       // 有插入的部分
@@ -283,7 +287,7 @@ export const createRenderer = (renderOptions) => {
         keyToNewIndexMap.set(vnode.key, i)
       }
       console.log(keyToNewIndexMap)
-      // 3) 循环旧的部分, 拿节点去上面的映射表里查找, 没找到说明这个旧节点需要删除, 找到了旧需要更新
+      // 3) 循环旧的部分, 拿节点去上面的映射表里查找, 没找到说明新的不要这个节点, 这个旧节点要删除, 找到了说明就需要更新
       for(let i = s1; i <= e1; i++) {
         const vnode = c1[i]
         const newIndex = keyToNewIndexMap.get(vnode.key)
@@ -298,8 +302,8 @@ export const createRenderer = (renderOptions) => {
       }
       // 4) 调整顺序(最终以新的部分顺序为准, 通过 insertBefore 倒叙通过倒叙参照物挨个插入)
       // 插入过程中, 新的部分可能更多, 就需要创建节点
-      // 新的部分通过 尾索引 - 头索引 + 1 得到新的乱序部分的节点数量, 也是倒叙插入的数量
-      const toBePatched = e2 - s1 + 1
+      // 新的部分通过 尾索引 - 头索引 + 1 得到新的乱序部分的节点数量, 也是倒叙插入的数量, 这个 +1 是索引相减后是不含尾的, 类似 for let i 循环, 索引比长度小 1 个, 算个数就得 +1
+      const toBePatched = e2 - s2 + 1
       for(let i = toBePatched - 1; i >= 0; i--) {
         // 4.1) 新的乱序部分倒叙每轮要插入的 "索引"
         const newIndex = s2 + i
