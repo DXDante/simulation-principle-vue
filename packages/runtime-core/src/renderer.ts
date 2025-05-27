@@ -282,11 +282,20 @@ export const createRenderer = (renderOptions) => {
 
       // 2) 用新的部分做一个映射表用于快速查找, 创建 keyToNewIndexMap(节点 key 对应 "索引"), 循环新的部分, 把 vnode 上的 key 和 "索引"存储起来
       const keyToNewIndexMap = new Map()
+      // 准备操作的乱序部分数量, 新的部分通过 尾索引 - 头索引 + 1 得到新的乱序部分的节点数量, 也是倒叙插入的数量
+      // 这个 +1 是索引相减后是不含尾的, 类似 for let i 循环, 索引比长度小 1 个, 算个数就得 +1
+      const toBePatched = e2 - s2 + 1
+      // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
+      // 新的节点索引对应老的节点索引(去除前部、尾部)
+      const newIndexToOldMapIndex = new Array(toBePatched).fill(0) // [0, 0, 0, 0]
+      // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
+
       for(let i = s2; i <= e2; i++) {
         const vnode = c2[i]
         keyToNewIndexMap.set(vnode.key, i)
       }
-      console.log(keyToNewIndexMap)
+      console.log('keyToNewIndexMap:', keyToNewIndexMap)
+
       // 3) 循环旧的部分, 拿节点去上面的映射表里查找, 没找到说明新的不要这个节点, 这个旧节点要删除, 找到了说明就需要更新
       for(let i = s1; i <= e1; i++) {
         const vnode = c1[i]
@@ -297,13 +306,21 @@ export const createRenderer = (renderOptions) => {
         }
         // 找到了的更新(新旧比对后更新属性, 又递归的比对该节点的儿子节点集)
         else {
+          // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
+          // 根据"新的节点索引"找到对应"老节点的索引"存储, 然后求出最长递增子序列, 根据子序列求出 "索引"
+          // newIndex 是新节点数组的真实索引, 要设置到 newIndexToOldMapIndex 上, 要减排除的前部分(s2), 赋值旧的节点真实索引到 newIndexToOldMapIndex 中, 得到 [4, 2, 3, 0]
+          // [4, 2, 3, 0] 求它的最长递增子序列, 就是 2 3, 根据子序列可以求出 "索引", 那么 2 3 对应这个数组的索引就是 1、2, 为了区分 0 索引值, 所以以下 +1, 并不影响结果, 因为求得是序列索引
+          // newIndexToOldMapIndex 其实就是对应下方 "4) 调整顺序" 里的 children2 中间倒叙插入的部分
+          // 那么下方 "4) 调整顺序" 倒叙插入部分循环的下标为 1、2 的节点就 "不用移动"
+          newIndexToOldMapIndex[newIndex - s2] = i + 1
+          // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
           patch(vnode, c2[newIndex], el)
         }
       }
+      console.log('newIndexToOldMapIndex:', newIndexToOldMapIndex)
+      
       // 4) 调整顺序(最终以新的部分顺序为准, 通过 insertBefore 倒叙通过倒叙参照物挨个插入)
       // 插入过程中, 新的部分可能更多, 就需要创建节点
-      // 新的部分通过 尾索引 - 头索引 + 1 得到新的乱序部分的节点数量, 也是倒叙插入的数量, 这个 +1 是索引相减后是不含尾的, 类似 for let i 循环, 索引比长度小 1 个, 算个数就得 +1
-      const toBePatched = e2 - s2 + 1
       for(let i = toBePatched - 1; i >= 0; i--) {
         // 4.1) 新的乱序部分倒叙每轮要插入的 "索引"
         const newIndex = s2 + i

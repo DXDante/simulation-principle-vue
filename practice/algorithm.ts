@@ -7,7 +7,6 @@
 //  C    D    E          2, 3, 4                    索引
 // [0]  [1]  [2]
 //  E    C    D    H     4, 2, 3, 0(表示以前不存在)   索引
-//
 // 
 // [C, D]
 // [0, 1] 通过上面的两个序列, 可以求出来, 最终这样的结果, 就可以保证某些元素不用移动
@@ -50,3 +49,117 @@
 //            1          8           4
 // *  2   3      5   6       7   9
 // 对应的索引是不是: 0, 1, 3, 4, 6, 7 ???
+
+// 贪心算法 + 二分查找求出 "最长子序列索引"
+export const getSequence = (arr) => {
+  // 返回的是索引集, 默认认为 第 0 个是最小的
+  const result = [0]
+  // 前驱节点的列表
+  const p = result.slice(0)
+  const length = arr.length
+  
+  // 二分查找
+  let start, end, middle;
+  
+  for(let i = 0; i < length; i++) {
+    const arrI = arr[i]
+    // 为了 Vue 3 而处理掉数组中 0 的情况 [5, 3, 4, 0]
+    if (arrI !== 0) {
+      // 拿出索引集最后一项(得到的是索引), 然后从数组中取出数据 和 当前的这一轮数据来作比对
+      let resultLastIndex = result[result.length - 1]
+
+      if (arr[resultLastIndex] < arrI) {
+        // 正常放入时, 前一个节点索引就是 result 中的最后一个
+        p[i] = result[result.length - 1]
+        // 将当前索引追加结果
+        result.push(i)
+        continue
+      }
+    }
+
+    // 二分查找(没有追加说明是要和 前面的 替换, 查找比 arrI 大的第 1 个替换掉)
+    start = 0 // 标记查找起始索引
+    end = result.length - 1 // 标记查找结束索引
+    // 要替换的索引最终 start === end
+    while(start < end) {
+      // 计算中间索引(| 0 位运算, 取整)
+      middle = ((start + end) / 2) | 0
+      // 索引集中拿到中间的索引, 再从源数组取出对应索引的值
+      if (arr[result[middle]] < arrI) {
+        start = middle + 1
+      } else {
+        end = middle
+      }
+    }
+
+    // 当前值 小于找到 源数据 索引对应的值就替换为最新的索引
+    if (arrI < arr[result[start]]) {
+      // 找到被替换节点的前一个
+      p[i] = result[start - 1]
+      result[start] = i
+    }
+
+    // 创建前驱节点, 进行倒叙追溯(最后一项肯定是不会错的, 所以根据最后一个节点做追溯)
+    let len = result.length
+    // 取出最后一项
+    let last = result[len - 1]
+    while(len-- > 0) {
+      result[len] = last
+      // 在数组中找到最后一个
+      last = p[last]
+    }
+  }
+  return result
+}
+
+// 自己实现的贪心算法 + 节点递归追溯求出 "最长子序列索引"
+export const getSequenceOther = (source: number[]): number[] => {
+  // 根据指定数据查找在子序列中小于的那个值得索引
+  const findSmaller = (beFinds: number[], target: number) => beFinds.findIndex(i => target < i)
+  // 源数据对应索引
+  const sourceValueToIndex = new Map()
+  // 子序列
+  const subsequence = []
+  // 子序列对应上一个值
+  const subsequencePrevValueMap = new Map()
+  // 根据 subsequencePrevValueMap 上一轮值映射表递归追溯得到正确的 值的序列 (倒叙的)
+  const backTo = (res: number[], map: Map<number, number>) => {
+    const resLast = res[res.length - 1]
+    const value = map.get(resLast)
+    if (value == null) {
+      return res
+    }
+    res.push(value)
+    return backTo(res, map)
+  }
+
+  for(let i = 0; i < source.length; i++) {
+    const item = source[i]
+    // 每轮循环设置数据对应的索引, 方便后面直接查找
+    sourceValueToIndex.set(item, i)
+    // 查找每轮数据比子序列中小的值
+    const smallIndex = findSmaller(subsequence, item)
+    let prevValue
+    // 替换, 保存上一轮的值, 用于倒叙追溯
+    if (smallIndex > -1) {
+      prevValue = subsequence[smallIndex - 1]
+      subsequence[smallIndex] = item
+    }
+    // 追加, 保存上一轮的值, 用于倒叙追溯
+    else {
+      prevValue = subsequence[subsequence.length - 1]
+      subsequence.push(item)
+    }
+
+    subsequencePrevValueMap.set(item, prevValue)
+  }
+
+  // 得到序列 并且 翻转
+  const sourceSubsequence = backTo(subsequence.slice(subsequence.length - 1), subsequencePrevValueMap).reverse()
+
+  // console.log('subsequence', subsequence)
+  // console.log('subsequencePrevValueMap', subsequencePrevValueMap)
+  // console.log('sourceSubsequence', sourceSubsequence)
+  // 最后根据 值序列 映射源数据对应的 索引
+  return sourceSubsequence.map(item => sourceValueToIndex.get(item))
+}

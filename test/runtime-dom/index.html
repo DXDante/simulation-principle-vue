@@ -66,8 +66,8 @@
       h('span', { key: 'D', style: { color: 'green' } }, 'D'),
       h('span', { key: 'E' }, 'E'),
       // h('span', { key: 'Q' }, 'Q'),
-      // h('span', { key: 'F' }, 'F'),
-      // h('span', { key: 'G' }, 'G'),
+      h('span', { key: 'F' }, 'F'),
+      h('span', { key: 'G' }, 'G'),
     ]
   )
   let h1VNode2 = h(
@@ -132,5 +132,19 @@
     render(h1VNode2, app)
     // render(null, app)
   }, 4000);
+
+  // const rres = getSequenceOther([4, 2, 3, 0])
+  // const rres = getSequenceOther([4, 2, 3, 0])
+
+  // console.log(getSequence([2, 3, 1, 5, 6, 8, 7, 9, 4]))
+  // console.log(getSequenceOther([2, 3, 1, 5, 6, 8, 7, 9, 4]))
+
+  // console.time('111')
+  // console.log(getSequence([2, 3, 1, 5, 6, 8, 7, 9, 4]))
+  // console.timeEnd('111')
+  
+  // console.time('222')
+  // console.log(getSequenceOther([2, 3, 1, 5, 6, 8, 7, 9, 4]))
+  // console.timeEnd('222')
 </script>
 </html>
