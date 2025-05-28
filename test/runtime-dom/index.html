@@ -11,8 +11,10 @@
   <div id="app"></div>
 </body>
 <script type="module">
-  // import { createRenderer, render, h } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
-  import { /*renderOptions, */render, h } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  // import { createRenderer, render, h, Text, Fragment } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment } from '../../packages/runtime-dom/dist/runtime-dom.js'
 
   // runtime-dom 他的作用就是提供 DOM-API (系列操作 DOM 的 API 方法)
   // @vue/runtime-dom -- 基于 --> @vue/runtime-core -- 基于 --> @vue/reactivity
@@ -22,7 +24,7 @@
   // 3) h 方法可以创建一个虚拟 dom (type, propsOrChildren, children)
 
   // // 虚拟 DOM 节点
-  // let h1VNode1 = h(
+  // const h1VNode1 = h(
   //   'div',
   //   {
   //     style: { color: '#11171c' },
@@ -37,7 +39,7 @@
   //   //   h('span', 'Master'),
   //   // ]
   // )
-  // let h1VNode2 = h(
+  // const h1VNode2 = h(
   //   'div',
   //   {
   //     style: { color: '#ea5413' },
@@ -53,40 +55,113 @@
   //   ]
   // )
 
-  // Diff 算法比对
-  let h1VNode1 = h(
-    'div',
-    {
-      style: { color: '#11171c', fontSize: '30px' },
+  // ------------------------------------------------ 测试 Diff 算法比对 ------------------------------------------------
+  // const h1VNode1 = h(
+  //   'div',
+  //   {
+  //     style: { color: '#11171c', fontSize: '30px' },
+  //   },
+  //   [
+  //     h('span', { key: 'A' }, 'A'),
+  //     h('span', { key: 'B' }, 'B'),
+  //     h('span', { key: 'C' }, 'C'),
+  //     h('span', { key: 'D', style: { color: 'green' } }, 'D'),
+  //     h('span', { key: 'E' }, 'E'),
+  //     // h('span', { key: 'Q' }, 'Q'),
+  //     h('span', { key: 'F' }, 'F'),
+  //     h('span', { key: 'G' }, 'G'),
+  //   ]
+  // )
+  // const h1VNode2 = h(
+  //   'div',
+  //   {
+  //     style: { color: '#11171c', fontSize: '30px' }
+  //   },
+  //   [
+  //     h('span', { key: 'A' }, 'A'),
+  //     h('span', { key: 'B' }, 'B'),
+  //     h('span', { key: 'E' }, 'E'),
+  //     h('span', { key: 'C' }, 'C'),
+  //     h('span', { key: 'D', style: { color: 'red' } }, 'D'),
+  //     h('span', { key: 'H' }, 'H'),
+  //     // h('span', { key: 'I' }, 'I'),
+  //     h('span', { key: 'F' }, 'F'),
+  //     h('span', { key: 'G' }, 'G'),
+  //   ]
+  // )
+  // ------------------------------------------------ 测试 Diff 算法比对 ------------------------------------------------
+
+  // ------------------------------------------------ 测试 文本节点 ------------------------------------------------
+  // const h1VNode1 = h(Text, 'Dante')
+  // const h1VNode2 = h(Text, 'Dante -> Master')
+  // ------------------------------------------------ 测试 文本节点 ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Fragment ------------------------------------------------
+  // const h1VNode1 = h(Fragment, [h('div', 'test'), h('div', 'Fragment')])
+  // // const h1VNode2 = h(Fragment, [h('div', 'test'), h('div', 'Fragment test over')])
+  // // const h1VNode2 = h(Fragment, [])
+  // const h1VNode2 = h(Fragment)
+  // ------------------------------------------------ 测试 Fragment ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Component ------------------------------------------------
+  // 组件
+  const componnet1 = {
+    data() {
+      return {
+        name: 'Dante', 
+        age: 33,
+        infos: {
+          address: '成都市'
+        }
+      }
     },
-    [
-      h('span', { key: 'A' }, 'A'),
-      h('span', { key: 'B' }, 'B'),
-      h('span', { key: 'C' }, 'C'),
-      h('span', { key: 'D', style: { color: 'green' } }, 'D'),
-      h('span', { key: 'E' }, 'E'),
-      // h('span', { key: 'Q' }, 'Q'),
-      h('span', { key: 'F' }, 'F'),
-      h('span', { key: 'G' }, 'G'),
-    ]
-  )
-  let h1VNode2 = h(
-    'div',
-    {
-      style: { color: '#11171c', fontSize: '30px' }
+    render(proxy) {
+      console.log('render this:', this)
+      console.log('render proxy:', proxy)
+      // 这只是演示, 实际不该再渲染函数里更改状态, 因为执行渲染函数就会收集依赖, 然后隔一段时间改变了数据, 又要出发渲染, 以此往复, 死循环了(已自行实现过 onMounted 逻辑模拟数据变更)
+      setTimeout(() => {
+        // 同一组件多次变更状态只执行一次重新渲染 (在 mountComponent 中创建 effect 的调度函数做了缓存更新队列, 等同步任务执行完, 再开启一个异步任务循环执行 update 方法)
+        // this.age++
+        // this.age++
+        // this.age++
+        // proxy.name += '@'
+        // proxy.name += '@'
+        // proxy.name += '@'
+        this.infos.address = '成都市武侯区'
+      }, 2000);
+      // this 表示组件实例, Vue 3 不会通过 "类(class)" 来产生实例了
+      // this 也可以使用渲染函数参数 proxy 代替
+      return h(Fragment, [
+        h('span', `name: ${ proxy.name }`),
+        h(Text, `, age: ${ this.age }, address: ${ this.infos.address }`),
+      ])
+    }
+  }
+  // 组件
+  // 组件属性是由 attrs(非响应式的, 与开发环境的不一致, 开发环境是响应式的) + props(是响应式的) 组成
+  // 组件所有属性 - propsOptions(定义的属性) 剩余的就是 attrs
+  const componnet2 = {
+    data() {
+      return {
+        testContent: '哈哈哈'
+      }
     },
-    [
-      h('span', { key: 'A' }, 'A'),
-      h('span', { key: 'B' }, 'B'),
-      h('span', { key: 'E' }, 'E'),
-      h('span', { key: 'C' }, 'C'),
-      h('span', { key: 'D', style: { color: 'red' } }, 'D'),
-      h('span', { key: 'H' }, 'H'),
-      // h('span', { key: 'I' }, 'I'),
-      h('span', { key: 'F' }, 'F'),
-      h('span', { key: 'G' }, 'G'),
-    ]
-  )
+    props: { // setup 中是 defineProps
+      name: String,
+      age: Number
+    },
+    render(proxy) {
+      console.log('render this:', this)
+      console.log('render proxy:', proxy)
+      return h('div', [
+        // h('span', `name: ${ this.$attrs.name }`),
+        // h(Text, `, age: ${ proxy.$attrs.age }`),
+        h('span', `name: ${ this.name }`),
+        h(Text, `, age: ${ proxy.age }`),
+      ])
+    }
+  }
+  // ------------------------------------------------ 测试 Component ------------------------------------------------
 
   // // 内置的渲染器
   // render(h1VNode, app)
@@ -112,8 +187,13 @@
   // const renderer = createRenderer(renderOptions)
   // renderer.render(h1VNode, app)
 
-  // 自定义方法
-  render(h1VNode1, app)
+  // 自定义方法渲染器
+  // render(h1VNode1, app)
+  
+  // 组件由两个虚拟节点组成, 1 通过 h(VueComponent) (它就是 vnode, 组件的虚拟节点) 产生的是组件内的虚拟节点(内部通过 render 方法拿到虚拟节点的返回值渲染)
+  // 2 通过 render 函数返回的虚拟节点, 这个虚拟节点才是最终要返回的内容, 虚拟节点对应的渲染子节点 (subTree)
+  // render(h(componnet1), app)
+  render(h(componnet2, { a: 1, b: 2, name: 'Jack', age: 33 }), app)
 
   // VNode 创建形式
   // const vnode = h('div')
@@ -129,22 +209,20 @@
   // console.log('vnode:', vnode)
 
   setTimeout(() => {
-    render(h1VNode2, app)
+    // render(h1VNode2, app)
     // render(null, app)
   }, 4000);
 
-  // const rres = getSequenceOther([4, 2, 3, 0])
-  // const rres = getSequenceOther([4, 2, 3, 0])
-
+  // ------------------------------------------------ 测试最长递增子序列 ------------------------------------------------
+  // console.log(getSequenceOther([4, 2, 3, 0]))
   // console.log(getSequence([2, 3, 1, 5, 6, 8, 7, 9, 4]))
   // console.log(getSequenceOther([2, 3, 1, 5, 6, 8, 7, 9, 4]))
-
   // console.time('111')
   // console.log(getSequence([2, 3, 1, 5, 6, 8, 7, 9, 4]))
   // console.timeEnd('111')
-  
   // console.time('222')
   // console.log(getSequenceOther([2, 3, 1, 5, 6, 8, 7, 9, 4]))
   // console.timeEnd('222')
+  // ------------------------------------------------ 测试最长递增子序列 ------------------------------------------------
 </script>
 </html>

@@ -1,5 +1,9 @@
 import { __isString, ShapeFlags, __isObject, __isFunction, __isArray } from "@vue/shared";
 
+export const Text = Symbol('Text')
+
+export const Fragment = Symbol('Fragment')
+
 /** 是否是节点 **/
 export const isVnode = (value) => {
   return value?.__v_isVnode;
@@ -21,7 +25,7 @@ export const createVNode = (type, props, children?, patchFlag?) => {
   const shapeFlag = __isString(type)
     ? ShapeFlags.ELEMENT // 元素
     : __isObject(type)
-    ? ShapeFlags.STATEFUL_COMPONENT // 状态组件
+    ? ShapeFlags.STATEFUL_COMPONENT // 带状态组件
     : __isFunction(type)
     ? ShapeFlags.FUNCTIONAL_COMPONENT // 函数组件
     : 0;

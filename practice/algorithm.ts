@@ -104,6 +104,7 @@ export const getSequence = (arr) => {
     // 取出最后一项
     let last = result[len - 1]
     while(len-- > 0) {
+      // 倒叙向前找, 因为 p 的列表是前驱节点
       result[len] = last
       // 在数组中找到最后一个
       last = p[last]
@@ -112,9 +113,9 @@ export const getSequence = (arr) => {
   return result
 }
 
-// 自己实现的贪心算法 + 节点递归追溯求出 "最长子序列索引"
+// 自己实现的贪心算法 + 二分查找(第 1 次用的顺位查找, 数量多有性能消耗) + 节点递归追溯求出 "最长子序列索引"
 export const getSequenceOther = (source: number[]): number[] => {
-  // 根据指定数据查找在子序列中小于的那个值得索引
+  // 根据指定数据查找在子序列中小于的那个值得索引, 这里稍后更改为二分查找
   const findSmaller = (beFinds: number[], target: number) => beFinds.findIndex(i => target < i)
   // 源数据对应索引
   const sourceValueToIndex = new Map()

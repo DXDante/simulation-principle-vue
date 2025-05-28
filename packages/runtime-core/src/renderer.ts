@@ -1,5 +1,9 @@
 import { ShapeFlags } from "@vue/shared"
-import { isSameVnode } from "./createVNode"
+import { Fragment, isSameVnode, Text } from "./createVNode"
+import { getSequence } from './seq'
+import { reactive } from "@vue/reactivity"
+import { ReactiveEffect } from "@vue/reactivity"
+import { queueJob } from "./scheduler"
 
 /**
  * createRenderer 可跨平台, 它不关心如何渲染
@@ -18,6 +22,7 @@ export const createRenderer = (renderOptions) => {
     patchProp: hostPatchProp
   } = renderOptions
 
+  /************************************************************ 元素、节点操作 ************************************************************/
   /** 挂载元素 **/
   const mountElement = (vnode, container, anchor) => {
     const { type, children, props, shapeFlag } = vnode
@@ -52,7 +57,14 @@ export const createRenderer = (renderOptions) => {
   }
 
   /** 移除 DOM **/
-  const unMount = (vnode) => hostRemove(vnode.el)
+  const unMount = (vnode) => {
+    const { type, children, el } = vnode
+    if (type === Fragment) {
+      unMountChildren(children)
+      return
+    }
+    hostRemove(el)
+  }
 
   /** 移除子元素 DOM **/
   const unMountChildren = (children) => {
@@ -60,10 +72,138 @@ export const createRenderer = (renderOptions) => {
       unMount(children[i])
     }
   }
+  /************************************************************ 元素、节点操作 ************************************************************/
 
-  /** 处理节点流程 **/
+  /************************************************************ 处理文本节点流程 ************************************************************/
+  /** 处理文本节点流程 **/
+  const processText = (n1, n2, container) => {
+    // 初始创建文本节点, 插入到容器, 并和真实节点做关联 (n2.el 指向 "真实节点")
+    if (n1 == null) {
+      hostInsert((n2.el = hostCreateText(n2.children)), container)
+    }
+    // 
+    else {
+      // 先将旧节点关联的 DOM 关联到新节点上
+      const el = (n2.el = n1.el)
+      if (n1.children !== n2.children) {
+        hostSetText(el, n2.children)
+      }
+    }
+  }
+  /************************************************************ 处理文本节点流程 ************************************************************/
+
+  /************************************************************ 处理 Fragment 流程 ************************************************************/
+  /** 处理 Fragment 流程 **/
+  const processFragment = (n1, n2, container) => {
+    // 初始挂载子节点
+    if (n1 == null) {
+      mountChildren(n2.children, container)
+    }
+    // 对比更新子节点
+    else {
+      patchChildren(n1, n2, container)
+    }
+  }
+  /************************************************************ 处理 Fragment 流程 ************************************************************/
+
+  /************************************************************ 处理 组件 流程 ************************************************************/
+  /** 处理组件 **/
+  const processComponent = (n1, n2, container, anchor) => {
+    // 挂载组件
+    if (n1 == null) {
+      mountComponent(n2, container, anchor)
+    }
+    // 更新组件
+    else {
+
+    }
+  }
+  
+  /** 挂载组件 **/
+  const mountComponent = (vnode, container, anchor) => {
+    // 组件可以依据自己的状态重新渲染, 组件其实就是 effect
+    // 解构, type, props 就是提供给组件的数据(类似于创建元素提供的属性数据), children 就是组件的插槽
+    const { type, props: rawProps = {}, children } = vnode
+    const { data = () => ({}), render, props: propsOptions = {} } = type
+    // 组件状态, 拿到数据创建响应式
+    const state = reactive(data())
+    // 组件标识位实例(它不是 new 出来的那种, 存放关于组件的一些数据)
+    const instance = {
+      data: state, // 组件状态
+      vnode, // 组件虚拟节点
+      subTree: null, // 组件子树, 组件节点 render 返回的子节点
+      isMounted: false, // 组件是否挂载完成
+      update: null, // 组件更新函数(effect 的调度函数)
+      component: null,
+      props: {},
+      propsOptions,
+      attrs: {}
+    }
+
+    // 组件节点保存当前组件实例
+    vnode.component = instance
+
+    // 根据 rawProps 和 propsOptions 区分出 props 和 attrs
+    initProps(instance, rawProps)
+
+    // 元素更新, 操作的 DOM 赋值给新的节点, 即 n2.el = n1.el
+    // 组件更新, 组件没有 el, render 函数返回的那个子虚拟节点才是渲染的节点(subTree), 即 n2.component.subTree.el = n1.component.subTree.el
+
+    // 渲染、更新都会走这, 这里其实就是副作用函数, 使用到 state 时, state 就会收集这个副作用函数依赖到 effect 实例上
+    const componentUpdateFn = () => {
+      // 初始挂载
+      if (!instance.isMounted) {
+        // call 第 1 个参数表示改变的 this 的引用为这个(因为在声明组件时 render 函数里用到了 this 去访问数据, 所以把这个 this 改变为 state 的引用), 第 2 个参数是被调用函数形参第 1 个参数
+        // render 函数返回的"子虚拟节点"(子树)
+        const subTree = render.call(state, state)
+        // 把"子树"插入到指定位置
+        patch(null, subTree, container, anchor)
+        instance.isMounted = true
+        instance.subTree = subTree
+      }
+      // 基于状态的组件更新 (比较两个子虚拟节点的差异, 就会走组件的 Diff 算法去比对, 再更新)
+      else {
+        const subTree = render.call(state, state)
+        patch(instance.subTree, subTree, container, anchor)
+        instance.subTree = subTree
+      }
+    }
+
+    // 原本多次修改状态, 就会出发多次渲染, 应该是多次修改状态只渲染更新 1 次
+    // 调度函数做延迟, 不是立刻执行, 等同步代码执行完了, 数据更改完了, 再去执行 1 次更新(异步更新), queueJob 函数就是就是把更新函数缓存, 再在微任务里执行 1 次
+    const effect = new ReactiveEffect(componentUpdateFn, () => queueJob(update))
+    const update = (instance.update = () => effect.run())
+
+    update()
+  }
+
+  /** 初始化 props, rawProps 为 "vnode 上的 props", 不是 type(定义组件时, h 函数中第一个参数 type 表示组件对象) 中的 props **/
+  const initProps = (instance, rawProps) => {
+    const props = {}
+    const attrs = {}
+    // 组件对象定义的 props
+    const { propsOptions } = instance
+    
+    // 用 rawProps (生成组件虚拟节点定义的 props) 来分裂
+    for(const key in rawProps) {
+      const value = rawProps[key]
+      // 如果组件对象定义的 props 中有这个 key, 应该把他分裂到 propsOptions 中
+      if (key in propsOptions) { // 这里可以把 propsOptions[key] 的值 和 rawProps[key] 的值校验关系, 是否是同一个类型, 否则的话就可以放入 attrs, 暂时先不管
+        props[key] = value
+      } else {
+        attrs[key] = value
+      }
+    }
+
+    instance.props = reactive(props) // 这里其实应该是 shallowReactive, props 不应该是深度代理, 组件不能更改 props 里面的值
+    instance.attrs = attrs
+  }
+  /************************************************************ 处理 组件 流程 ************************************************************/
+
+  /************************************************************ 处理 元素节点 流程 ************************************************************/
+  /** 处理元素节点流程 **/
   const processElement = (n1, n2, container, anchor) => {
-    // 初次渲染
+    // 初始挂载元素
     if (n1 === null) {
       mountElement(n2, container, anchor)
     }
@@ -162,8 +302,8 @@ export const createRenderer = (renderOptions) => {
   }
 
   /**
-   * Vue 3 中分为两种 全量 diff, 递归 diff、快速 diff(靶向更新 -> 基于模板编译的)
-   * 通过 Diff 算法比较两个儿子们的差异, 更新父级元素
+   * Vue 3 中分为两种 全量 diff(递归 diff)、快速 diff(靶向更新 -> 基于模板编译的)
+   * 通过 Diff 算法比较两个儿子们的差异, 更新父级元素 (这里是全量 Diff)
    * @param el 父级元素
    * 原理步骤:
    * 1) 先挨个从头比对, 相同节点就更新, 不同节点就停止, 再挨个从尾比对, 操作也如此
@@ -309,19 +449,24 @@ export const createRenderer = (renderOptions) => {
           // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
           // 根据"新的节点索引"找到对应"老节点的索引"存储, 然后求出最长递增子序列, 根据子序列求出 "索引"
           // newIndex 是新节点数组的真实索引, 要设置到 newIndexToOldMapIndex 上, 要减排除的前部分(s2), 赋值旧的节点真实索引到 newIndexToOldMapIndex 中, 得到 [4, 2, 3, 0]
-          // [4, 2, 3, 0] 求它的最长递增子序列, 就是 2 3, 根据子序列可以求出 "索引", 那么 2 3 对应这个数组的索引就是 1、2, 为了区分 0 索引值, 所以以下 +1, 并不影响结果, 因为求得是序列索引
-          // newIndexToOldMapIndex 其实就是对应下方 "4) 调整顺序" 里的 children2 中间倒叙插入的部分
-          // 那么下方 "4) 调整顺序" 倒叙插入部分循环的下标为 1、2 的节点就 "不用移动"
+          // [4, 2, 3, 0] 求它的最长递增子序列, 就是 2 3, 根据子序列可以求出 "索引", 那么 2 3 对应这个数组的索引就是 1、2
+          // !!!!! 注意:为了区分 0 索引值, 所以以下 +1, 并不影响结果, 因为求得是序列索引 !!!!!
+          // newIndexToOldMapIndex 其实就是对应下方 "4) 调整顺序" 里的 children2 中间倒叙插入的部分, 那么下方 "4) 调整顺序" 倒叙插入部分循环的下标为 1、2 的节点就 "不用移动"
           newIndexToOldMapIndex[newIndex - s2] = i + 1
           // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
           patch(vnode, c2[newIndex], el)
         }
       }
       console.log('newIndexToOldMapIndex:', newIndexToOldMapIndex)
+
+      // 根据新节点集求出最长子序列索引, 得出 [1, 2], 那么下面操作时, 下标为 1、2 的不用移动
+      const increasingSeq = getSequence(newIndexToOldMapIndex)
+      let increasingSeqIndex = increasingSeq.length - 1 // 索引
       
       // 4) 调整顺序(最终以新的部分顺序为准, 通过 insertBefore 倒叙通过倒叙参照物挨个插入)
       // 插入过程中, 新的部分可能更多, 就需要创建节点
       for(let i = toBePatched - 1; i >= 0; i--) {
+        // 3, 2, 1, 0
         // 4.1) 新的乱序部分倒叙每轮要插入的 "索引"
         const newIndex = s2 + i
         // 4.2) 新的乱序部分倒叙每轮要插入的 "索引" 的节点
@@ -334,13 +479,21 @@ export const createRenderer = (renderOptions) => {
         }
         // 已有的节点
         else {
-          hostInsert(vnode.el, el, anchor)
+          // 做了 Diff 算法的优化, 当循环到不需要移动的索引时, 跳过
+          if (i === increasingSeq[increasingSeqIndex]) {
+            increasingSeqIndex--
+          }
+          // 移动插入
+          else {
+            hostInsert(vnode.el, el, anchor)
+          }
         }
       }
     }
     // ---------------------------------------- 第三步: 比对中间剩余乱序的部分, 旧的比对新的, 旧的多余的节点删除, 新旧都存在的复用更新 --------------------------------------- //
     // ----------------------------------------------- 最终按照新的顺序以倒叙方式根据参照物依次插入, 参照物就是插入节点在数组中的下一个节点 ---------------------------------- //
   }
+  /************************************************************ 处理 元素节点 流程 ************************************************************/
 
   /** 渲染 和 更新都走这里, anchor 如果有值表示在之前插入, 否则就是追加 **/
   const patch = (n1, n2, container, anchor = null) => {
@@ -353,7 +506,26 @@ export const createRenderer = (renderOptions) => {
       n1 = null // 就会执行后续的 n2 的初始化
     }
 
-    processElement(n1, n2, container, anchor)
+    const { type, shapeFlag } = n2
+    switch (type) {
+      // 文本类型
+      case Text:
+        processText(n1, n2, container)
+        break;
+      // Fragment 类型(相当于文档碎片, Vue 2 中必须要用根节点, Vue 3 则可不必, V3 多节点就是基于 Fragment 实现的)
+      case Fragment:
+        processFragment(n1, n2, container)
+        break;
+      default:
+        // 对元素的处理
+        if (shapeFlag & ShapeFlags.ELEMENT) {
+          processElement(n1, n2, container, anchor)
+        }
+        // 对组件的处理 (函数式组件在 Vue 3 中已经废弃了, 因为没有性能节约, 推荐的是状态组件)
+        else if (shapeFlag & ShapeFlags.COMPONENT) {
+          processComponent(n1, n2, container, anchor)
+        }
+    }
   }
 
   /** 将虚拟节点变成真实节点进行渲染, 多次调用会进行虚拟节点比较再更新 **/
