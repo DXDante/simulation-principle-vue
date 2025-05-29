@@ -154,10 +154,11 @@
       console.log('render this:', this)
       console.log('render proxy:', proxy)
       return h('div', [
-        // h('span', `name: ${ this.$attrs.name }`),
-        // h(Text, `, age: ${ proxy.$attrs.age }`),
-        h('span', `name: ${ this.name }`),
-        h(Text, `, age: ${ proxy.age }`),
+        h('p', `组件 props 中的 name: ${ this.name }`),
+        h(Text, `组件 props 中的 age: ${ proxy.age }`),
+        h('p', `组件 $attrs 中的 a: ${ this.$attrs.a }`),
+        h(Text, `组件 $attrs 中的 b: ${ proxy.$attrs.b }`),
+        h('p', `组件 data 中的 testContent: ${ proxy.testContent }`),
       ])
     }
   }

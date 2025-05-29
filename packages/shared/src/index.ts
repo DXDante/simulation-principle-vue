@@ -82,4 +82,10 @@ export const __isStringNumber = (p: unknown): boolean => {
   return !!(typeof p === 'string' && !isNaN(Number(p)))
 }
 
+/**
+ * 查看 key 是不是在这个对象上
+ */
+const hasOwnProperty = Object.prototype.hasOwnProperty
+export const __hasOwnProperty = (target, key) => hasOwnProperty.call(target, key)
+
 export * from './shapeFlags'

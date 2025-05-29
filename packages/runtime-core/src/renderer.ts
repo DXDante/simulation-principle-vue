@@ -1,9 +1,10 @@
-import { ShapeFlags } from "@vue/shared"
+import { __hasOwnProperty, ShapeFlags } from "@vue/shared"
 import { Fragment, isSameVnode, Text } from "./createVNode"
 import { getSequence } from './seq'
 import { reactive } from "@vue/reactivity"
 import { ReactiveEffect } from "@vue/reactivity"
 import { queueJob } from "./scheduler"
+import { createComponentInstance, setupComponent } from "./component"
 
 /**
  * createRenderer 可跨平台, 它不关心如何渲染
@@ -121,41 +122,27 @@ export const createRenderer = (renderOptions) => {
   
   /** 挂载组件 **/
   const mountComponent = (vnode, container, anchor) => {
-    // 组件可以依据自己的状态重新渲染, 组件其实就是 effect
-    // 解构, type, props 就是提供给组件的数据(类似于创建元素提供的属性数据), children 就是组件的插槽
-    const { type, props: rawProps = {}, children } = vnode
-    const { data = () => ({}), render, props: propsOptions = {} } = type
-    // 组件状态, 拿到数据创建响应式
-    const state = reactive(data())
-    // 组件标识位实例(它不是 new 出来的那种, 存放关于组件的一些数据)
-    const instance = {
-      data: state, // 组件状态
-      vnode, // 组件虚拟节点
-      subTree: null, // 组件子树, 组件节点 render 返回的子节点
-      isMounted: false, // 组件是否挂载完成
-      update: null, // 组件更新函数(effect 的调度函数)
-      component: null,
-      props: {},
-      propsOptions,
-      attrs: {}
-    }
-
-    // 组件节点保存当前组件实例
-    vnode.component = instance
-
-    // 根据 rawProps 和 propsOptions 区分出 props 和 attrs
-    initProps(instance, rawProps)
-
+    // 1) 创建组件实例, 组件节点保存当前组件实例
+    const instance = (vnode.component = createComponentInstance(vnode))
+    // 2) 组件实例初始化属性
+    setupComponent(instance)
+    // 3) 创建 Effect, 副作用函数调用 render 方法执行, 使用到的数据做依赖收集, render 返回的虚拟节点挂载到指定容器
+    setupRenderEffect(instance, container, anchor)
+    
     // 元素更新, 操作的 DOM 赋值给新的节点, 即 n2.el = n1.el
     // 组件更新, 组件没有 el, render 函数返回的那个子虚拟节点才是渲染的节点(subTree), 即 n2.component.subTree.el = n1.component.subTree.el
+  }
 
+  /** 创建 effect 关联到 render 副作用函数 **/
+  const setupRenderEffect = (instance, container, anchor) => {
+    const { render } = instance
     // 渲染、更新都会走这, 这里其实就是副作用函数, 使用到 state 时, state 就会收集这个副作用函数依赖到 effect 实例上
     const componentUpdateFn = () => {
       // 初始挂载
       if (!instance.isMounted) {
         // call 第 1 个参数表示改变的 this 的引用为这个(因为在声明组件时 render 函数里用到了 this 去访问数据, 所以把这个 this 改变为 state 的引用), 第 2 个参数是被调用函数形参第 1 个参数
         // render 函数返回的"子虚拟节点"(子树)
-        const subTree = render.call(state, state)
+        const subTree = render.call(instance.proxy, instance.proxy)
         // 把"子树"插入到指定位置
         patch(null, subTree, container, anchor)
         instance.isMounted = true
@@ -163,7 +150,7 @@ export const createRenderer = (renderOptions) => {
       }
       // 基于状态的组件更新 (比较两个子虚拟节点的差异, 就会走组件的 Diff 算法去比对, 再更新)
       else {
-        const subTree = render.call(state, state)
+        const subTree = render.call(instance.proxy, instance.proxy)
         patch(instance.subTree, subTree, container, anchor)
         instance.subTree = subTree
       }
@@ -175,28 +162,6 @@ export const createRenderer = (renderOptions) => {
     const update = (instance.update = () => effect.run())
 
     update()
-  }
-
-  /** 初始化 props, rawProps 为 "vnode 上的 props", 不是 type(定义组件时, h 函数中第一个参数 type 表示组件对象) 中的 props **/
-  const initProps = (instance, rawProps) => {
-    const props = {}
-    const attrs = {}
-    // 组件对象定义的 props
-    const { propsOptions } = instance
-    
-    // 用 rawProps (生成组件虚拟节点定义的 props) 来分裂
-    for(const key in rawProps) {
-      const value = rawProps[key]
-      // 如果组件对象定义的 props 中有这个 key, 应该把他分裂到 propsOptions 中
-      if (key in propsOptions) { // 这里可以把 propsOptions[key] 的值 和 rawProps[key] 的值校验关系, 是否是同一个类型, 否则的话就可以放入 attrs, 暂时先不管
-        props[key] = value
-      } else {
-        attrs[key] = value
-      }
-    }
-
-    instance.props = reactive(props) // 这里其实应该是 shallowReactive, props 不应该是深度代理, 组件不能更改 props 里面的值
-    instance.attrs = attrs
   }
   /************************************************************ 处理 组件 流程 ************************************************************/
 
