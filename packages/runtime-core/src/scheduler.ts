@@ -16,8 +16,9 @@ export const queueJob = (job) => {
   }
   // 2) 不是在刷新中时, 同时开启一个异步任务
   if (!isFlashing) {
+    isFlashing = true
     resolvePromise.then(() => {
-      isFlashing = true
+      isFlashing = false
       // 先拷贝再执行, 防止正在执行此任务时, queue 如果新增了, 可能导致死循环
       const copy = queue.slice(0)
       // 清空队列

@@ -116,7 +116,7 @@ export const createRenderer = (renderOptions) => {
     }
     // 更新组件
     else {
-
+      updateComponent(n1, n2, container, anchor)
     }
   }
   
@@ -162,6 +162,53 @@ export const createRenderer = (renderOptions) => {
     const update = (instance.update = () => effect.run())
 
     update()
+  }
+
+  /** 更新组件 **/
+  const updateComponent = (n1, n2, container, anchor) => {
+    console.log('组件更新', n1, n2);
+    // 复用组件实例
+    const instance = (n2.component = n1.component)
+    const { props: prevProps } = n1
+    const { props: nextProps } = n2
+
+    updateProps(instance, prevProps, nextProps)
+  }
+
+  /** 更新组件 props **/
+  const updateProps = (instance, prevProps, nextProps) => {
+    // instance.props, instance.attrs
+
+    if (hasPropsChange(prevProps, nextProps)) {
+      // 新属性值覆盖所有旧的值
+      for (const key in nextProps) {
+        instance.props[key] = nextProps[key]
+      }
+      // 旧的属性在新的上没有就删除
+      for(const key in instance.props) {
+        if (!(key in nextProps)) {
+          delete instance.props[key]
+        }
+      }
+    }
+  }
+
+  const hasPropsChange = (prevProps, nextProps) => {
+    const prevKeys = Object.keys(prevProps)
+    const nextKeys = Object.keys(nextProps)
+
+    // 属性长度, 看是否有增减
+    if (nextKeys.length !== prevKeys.length) { return true }
+    // 属性值, 看某个属性值是否有变化
+    for(let i = 0; i < nextKeys.length; i++) {
+      const key = nextKeys[i]
+
+      if (nextProps[key] !== prevProps[key]) {
+        return true
+      }
+    }
+
+    return false
   }
   /************************************************************ 处理 组件 流程 ************************************************************/
 

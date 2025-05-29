@@ -43,9 +43,12 @@ export const setupComponent = (instance) => {
   instance.proxy = new Proxy(instance, instanceProxyHandler)
 
   // 组件状态, 拿到数据创建响应式
-  if (!__isFunction(data)) { return console.warn('data option mast be a function') }
-
-  instance.data = reactive(data.call(instance.proxy) || {})
+  if (!__isFunction(data)) {
+    console.warn('data option mast be a function')
+  } else {
+    instance.data = reactive(data.call(instance.proxy) || {})
+  }
+  
   instance.render = render
 }
 

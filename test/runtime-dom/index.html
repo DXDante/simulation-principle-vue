@@ -6,6 +6,7 @@
   <title>runtime-dom</title>
   <link rel="stylesheet" href="../../common/reset-default.css">
   <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
 </head>
 <body>
   <div id="app"></div>
@@ -104,65 +105,89 @@
   // ------------------------------------------------ 测试 Fragment ------------------------------------------------
 
   // ------------------------------------------------ 测试 Component ------------------------------------------------
-  // 组件
+  // // 组件
+  // const componnet1 = {
+  //   data() {
+  //     return {
+  //       name: 'Dante', 
+  //       age: 33,
+  //       infos: {
+  //         address: '成都市'
+  //       }
+  //     }
+  //   },
+  //   render(proxy) {
+  //     console.log('render this:', this)
+  //     console.log('render proxy:', proxy)
+  //     // 这只是演示, 实际不该再渲染函数里更改状态, 因为执行渲染函数就会收集依赖, 然后隔一段时间改变了数据, 又要出发渲染, 以此往复, 死循环了(已自行实现过 onMounted 逻辑模拟数据变更)
+  //     setTimeout(() => {
+  //       // 同一组件多次变更状态只执行一次重新渲染 (在 mountComponent 中创建 effect 的调度函数做了缓存更新队列, 等同步任务执行完, 再开启一个异步任务循环执行 update 方法)
+  //       // this.age++
+  //       // this.age++
+  //       // this.age++
+  //       // proxy.name += '@'
+  //       // proxy.name += '@'
+  //       // proxy.name += '@'
+  //       this.infos.address = '成都市武侯区'
+  //     }, 2000);
+  //     // this 表示组件实例, Vue 3 不会通过 "类(class)" 来产生实例了
+  //     // this 也可以使用渲染函数参数 proxy 代替
+  //     return h(Fragment, [
+  //       h('span', `name: ${ proxy.name }`),
+  //       h(Text, `, age: ${ this.age }, address: ${ this.infos.address }`),
+  //     ])
+  //   }
+  // }
+  // // 组件
+  // // 组件属性是由 attrs(非响应式的, 与开发环境的不一致, 开发环境是响应式的) + props(是响应式的) 组成
+  // // 组件所有属性 - propsOptions(定义的属性) 剩余的就是 attrs
+  // const componnet2 = {
+  //   data() {
+  //     return {
+  //       testContent: '哈哈哈'
+  //     }
+  //   },
+  //   props: { // setup 中是 defineProps
+  //     name: String,
+  //     age: Number
+  //   },
+  //   render(proxy) {
+  //     console.log('render this:', this)
+  //     console.log('render proxy:', proxy)
+  //     return h('div', [
+  //       h('p', `组件 props 中的 name: ${ this.name }`),
+  //       h(Text, `组件 props 中的 age: ${ proxy.age }`),
+  //       h('p', `组件 $attrs 中的 a: ${ this.$attrs.a }`),
+  //       h(Text, `组件 $attrs 中的 b: ${ proxy.$attrs.b }`),
+  //       h('p', `组件 data 中的 testContent: ${ proxy.testContent }`),
+  //     ])
+  //   }
+  // }
+  // ------------------------------------------------ 测试 Component ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Component 更新 ------------------------------------------------
+  const renderComponent = {
+    props: {
+      address: String
+    },
+    render(proxy) {
+      return h(Text, `渲染组件:${ this.address }`)
+    }
+  }
   const componnet1 = {
     data() {
       return {
-        name: 'Dante', 
-        age: 33,
-        infos: {
-          address: '成都市'
-        }
+        flag: true
       }
     },
     render(proxy) {
-      console.log('render this:', this)
-      console.log('render proxy:', proxy)
-      // 这只是演示, 实际不该再渲染函数里更改状态, 因为执行渲染函数就会收集依赖, 然后隔一段时间改变了数据, 又要出发渲染, 以此往复, 死循环了(已自行实现过 onMounted 逻辑模拟数据变更)
-      setTimeout(() => {
-        // 同一组件多次变更状态只执行一次重新渲染 (在 mountComponent 中创建 effect 的调度函数做了缓存更新队列, 等同步任务执行完, 再开启一个异步任务循环执行 update 方法)
-        // this.age++
-        // this.age++
-        // this.age++
-        // proxy.name += '@'
-        // proxy.name += '@'
-        // proxy.name += '@'
-        this.infos.address = '成都市武侯区'
-      }, 2000);
-      // this 表示组件实例, Vue 3 不会通过 "类(class)" 来产生实例了
-      // this 也可以使用渲染函数参数 proxy 代替
       return h(Fragment, [
-        h('span', `name: ${ proxy.name }`),
-        h(Text, `, age: ${ this.age }, address: ${ this.infos.address }`),
+        h('button', { class: 'btn', onClick: () => { this.flag = !this.flag } }, `点击切换`),
+        h(renderComponent, { address: this.flag ? '成都市' : '上海市' }),
       ])
     }
   }
-  // 组件
-  // 组件属性是由 attrs(非响应式的, 与开发环境的不一致, 开发环境是响应式的) + props(是响应式的) 组成
-  // 组件所有属性 - propsOptions(定义的属性) 剩余的就是 attrs
-  const componnet2 = {
-    data() {
-      return {
-        testContent: '哈哈哈'
-      }
-    },
-    props: { // setup 中是 defineProps
-      name: String,
-      age: Number
-    },
-    render(proxy) {
-      console.log('render this:', this)
-      console.log('render proxy:', proxy)
-      return h('div', [
-        h('p', `组件 props 中的 name: ${ this.name }`),
-        h(Text, `组件 props 中的 age: ${ proxy.age }`),
-        h('p', `组件 $attrs 中的 a: ${ this.$attrs.a }`),
-        h(Text, `组件 $attrs 中的 b: ${ proxy.$attrs.b }`),
-        h('p', `组件 data 中的 testContent: ${ proxy.testContent }`),
-      ])
-    }
-  }
-  // ------------------------------------------------ 测试 Component ------------------------------------------------
+  // ------------------------------------------------ 测试 Component 更新 ------------------------------------------------
 
   // // 内置的渲染器
   // render(h1VNode, app)
@@ -193,8 +218,8 @@
   
   // 组件由两个虚拟节点组成, 1 通过 h(VueComponent) (它就是 vnode, 组件的虚拟节点) 产生的是组件内的虚拟节点(内部通过 render 方法拿到虚拟节点的返回值渲染)
   // 2 通过 render 函数返回的虚拟节点, 这个虚拟节点才是最终要返回的内容, 虚拟节点对应的渲染子节点 (subTree)
-  // render(h(componnet1), app)
-  render(h(componnet2, { a: 1, b: 2, name: 'Jack', age: 33 }), app)
+  render(h(componnet1, {}), app)
+  // render(h(componnet2, { a: 1, b: 2, name: 'Jack', age: 33 }), app)
 
   // VNode 创建形式
   // const vnode = h('div')
@@ -209,10 +234,10 @@
   // const vnode = h('div', { }, h('span'), h('span'), h('span'))
   // console.log('vnode:', vnode)
 
-  setTimeout(() => {
-    // render(h1VNode2, app)
-    // render(null, app)
-  }, 4000);
+  // setTimeout(() => {
+  //   // render(h1VNode2, app)
+  //   // render(null, app)
+  // }, 4000);
 
   // ------------------------------------------------ 测试最长递增子序列 ------------------------------------------------
   // console.log(getSequenceOther([4, 2, 3, 0]))
