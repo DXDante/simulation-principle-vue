@@ -59,9 +59,14 @@ export const createRenderer = (renderOptions) => {
 
   /** 移除 DOM **/
   const unMount = (vnode) => {
-    const { type, children, el } = vnode
+    const { type, children, el, shapeFlag, component } = vnode
     if (type === Fragment) {
       unMountChildren(children)
+      return
+    }
+    // 组件的卸载是移除 render 函数返回的虚拟节点对应的 DOM
+    if (shapeFlag & ShapeFlags.COMPONENT) {
+      unMount(component.subTree)
       return
     }
     hostRemove(el)
@@ -150,6 +155,12 @@ export const createRenderer = (renderOptions) => {
       }
       // 基于状态的组件更新 (比较两个子虚拟节点的差异, 就会走组件的 Diff 算法去比对, 再更新)
       else {
+        const { next } = instance
+        // 有 next 表示需要更新属性 / 插槽, 更新完数据后后续再走 render 重新渲染
+        if (next) {
+          updateComponentPreRender(instance, next)
+        }
+
         const subTree = render.call(instance.proxy, instance.proxy)
         patch(instance.subTree, subTree, container, anchor)
         instance.subTree = subTree
@@ -164,31 +175,62 @@ export const createRenderer = (renderOptions) => {
     update()
   }
 
+  /** 更新组建 - 渲染函数执行前(更新属性流程), next 是新的组件虚拟节点 **/
+  const updateComponentPreRender = (instance, next) => {
+    // 清空占位, 后续如果状态更新才能正常进行
+    instance.next = null
+    // 复用虚拟节点, 把新的赋值
+    instance.vnode = next
+    updateProps(instance, instance.props, next.props)
+  }
+
   /** 更新组件 **/
   const updateComponent = (n1, n2, container, anchor) => {
     console.log('组件更新', n1, n2);
     // 复用组件实例
     const instance = (n2.component = n1.component)
-    const { props: prevProps } = n1
-    const { props: nextProps } = n2
 
-    updateProps(instance, prevProps, nextProps)
+    // Vue 3.2 之后更新逻辑统一走基于状态的 effect 中更新, 因为方便统一管理, 所以把这里的属性更新不再需要了, 其实就是使用 $forceUpdate 进行强制更新, 但需要判断是否需要更新
+    if (shouldComponentUpdate(n1, n2)) {
+      // 更新需要新的虚拟节点, 所以把 n2 赋值到实例的 next 上, 如果调用 update 有 next 属性, 说明是属性更新 / 插槽更新
+      instance.next = n2
+      // 让更新逻辑统一
+      instance.update()
+    }
+
+    // Vue 3.2 之前属性的更新是独立写的
+    // const { props: prevProps } = n1
+    // const { props: nextProps } = n2
+    // updateProps(instance, prevProps, nextProps)
+  }
+
+  const shouldComponentUpdate = (n1, n2) => {
+    const { props: prevProps, children: prevChildren } = n1
+    const { props: nextProps, children: nextChildren } = n2
+
+    // 有插槽直接重新渲染即可
+    if (prevChildren || nextChildren) { return true }
+    // 前后属性集完全相同
+    if (prevProps === nextProps) { return false }
+    // 对比属性是否有变化
+    return hasPropsChange(prevProps, nextProps)
   }
 
   /** 更新组件 props **/
   const updateProps = (instance, prevProps, nextProps) => {
     // instance.props, instance.attrs
 
-    if (hasPropsChange(prevProps, nextProps)) {
-      // 新属性值覆盖所有旧的值
-      for (const key in nextProps) {
-        instance.props[key] = nextProps[key]
-      }
-      // 旧的属性在新的上没有就删除
-      for(const key in instance.props) {
-        if (!(key in nextProps)) {
-          delete instance.props[key]
-        }
+    // // 旧判断, 更新属性/插槽流程已经在 shouldComponentUpdate 中判断了, 以下直接更新
+    // if (hasPropsChange(prevProps, nextProps)) {}
+
+    // 新属性值覆盖所有旧的值
+    for (const key in nextProps) {
+      instance.props[key] = nextProps[key]
+    }
+    // 旧的属性在新的上没有就删除
+    for(const key in instance.props) {
+      if (!(key in nextProps)) {
+        delete instance.props[key]
       }
     }
   }

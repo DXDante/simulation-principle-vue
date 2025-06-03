@@ -12,49 +12,10 @@
   <div id="app"></div>
 </body>
 <script type="module">
-  // import { createRenderer, render, h, Text, Fragment } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
-  // import { createRenderer, render, h, Text, Fragment } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
   // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
-  import { render, h, Text, Fragment } from '../../packages/runtime-dom/dist/runtime-dom.js'
-
-  // runtime-dom 他的作用就是提供 DOM-API (系列操作 DOM 的 API 方法)
-  // @vue/runtime-dom -- 基于 --> @vue/runtime-core -- 基于 --> @vue/reactivity
-
-  // 1) createRenderer 我们可以自己创建渲染器 (让我们自己提供渲染的方式)
-  // 2) render 用内置的渲染器来进行渲染 (渲染 dom 元素的)
-  // 3) h 方法可以创建一个虚拟 dom (type, propsOrChildren, children)
-
-  // // 虚拟 DOM 节点
-  // const h1VNode1 = h(
-  //   'div',
-  //   {
-  //     style: { color: '#11171c' },
-  //     class: 'info',
-  //     onClick() { console.log('控制台输出:', prompt('将信息打印至控制台')) },
-  //     'data-index': 0
-  //   },
-  //   'Dante-Master'
-  //   // [
-  //   //   h('span', 'Dante'),
-  //   //   h('span', '-'),
-  //   //   h('span', 'Master'),
-  //   // ]
-  // )
-  // const h1VNode2 = h(
-  //   'div',
-  //   {
-  //     style: { color: '#ea5413' },
-  //     class: '',
-  //     onClick() { console.log('控制台输出:', prompt('将信息打印至控制台')) },
-  //     'data-index': 0
-  //   },
-  //   // 'Jack-Master'
-  //   [
-  //     h('span', 'Jack'),
-  //     h('span', '-'),
-  //     h('span', 'Master'),
-  //   ]
-  // )
+  import { render, h, Text, Fragment, reactive, ref } from '../../packages/runtime-dom/dist/runtime-dom.js'
 
   // ------------------------------------------------ 测试 Diff 算法比对 ------------------------------------------------
   // const h1VNode1 = h(
@@ -166,55 +127,113 @@
   // ------------------------------------------------ 测试 Component ------------------------------------------------
 
   // ------------------------------------------------ 测试 Component 更新 ------------------------------------------------
-  const renderComponent = {
-    props: {
-      address: String
-    },
-    render(proxy) {
-      return h(Text, `渲染组件:${ this.address }`)
-    }
-  }
-  const componnet1 = {
-    data() {
-      return {
-        flag: true
-      }
-    },
-    render(proxy) {
-      return h(Fragment, [
-        h('button', { class: 'btn', onClick: () => { this.flag = !this.flag } }, `点击切换`),
-        h(renderComponent, { address: this.flag ? '成都市' : '上海市' }),
-      ])
-    }
-  }
+  // 组件更新有三种方式(状态、属性、插槽)
+  // const renderComponent = {
+  //   props: {
+  //     address: String
+  //   },
+  //   render(proxy) {
+  //     return h(Text, `渲染组件:${ this.address }`)
+  //   }
+  // }
+  // const componnet1 = {
+  //   data() {
+  //     return {
+  //       flag: true
+  //     }
+  //   },
+  //   render(proxy) {
+  //     return h(Fragment, [
+  //       h('button', { class: 'btn', onClick: () => { this.flag = !this.flag } }, `点击切换`),
+  //       h(renderComponent, { address: this.flag ? '成都市' : '上海市' }),
+  //     ])
+  //   }
+  // }
   // ------------------------------------------------ 测试 Component 更新 ------------------------------------------------
 
-  // // 内置的渲染器
-  // render(h1VNode, app)
-
-  // // 自定义渲染器
-  // const renderer = createRenderer({
-  //   // 创建元素
-  //   createElement(type) {
-  //     return document.createElement(type)
-  //   },
-  //   // 设置文本
-  //   setElementText(el, text) {
-  //     el.textContent = text
-  //   },
-  //   // 插入
-  //   insert(el, container) {
-  //     console.log(el, container)
-  //     container.appendChild(el)
+  // ------------------------------------------------ 测试 Component setup ------------------------------------------------
+  // setup 函数, 每个组件只会执行一次, 可放入 composition api 中, setup 可以返回 render 函数, 也可以返回组件自身状态数据对象
+  // const componnet1 = {
+  //   setup(props, { attrs, slots, emit, expose }) {
+  //     return () => h(Fragment, [
+  //       h('div', `文本 DIV(setup 返回 render)`),
+  //     ])
   //   }
-  // })
+  // }
 
-  // // 自定义渲染器
-  // const renderer = createRenderer(renderOptions)
-  // renderer.render(h1VNode, app)
+  // const componnet1 = {
+  //   setup(props, { attrs, slots, emit, expose }) {
+  //     const name = ref('Dante')
+  //     setTimeout(() => { name.value = 'Jack(Dante 更改后的)' }, 2000);
+  //     return { name }
+  //   },
+  //   render(proxy) {
+  //     // console.log('proxy', proxy)
+  //     return h('div', proxy.name)
+  //   }
+  // }
 
-  // 自定义方法渲染器
-  // render(h1VNode1, app)
+  // const componnet1 = {
+  //   setup(props, { attrs, slots, emit, expose }) {
+  //     const name = ref('Dante')
+  //     setTimeout(() => { name.value = 'Jack(Dante 更改后的)' }, 2000);
+  //     return (proxy) => {
+  //       console.log('proxy', proxy)
+  //       return h('div', name.value)
+  //     }
+  //   }
+  // }
+  // ------------------------------------------------ 测试 Component setup ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Component 插槽 ------------------------------------------------
+  // const renderComponent = {
+  //   setup(props, { slots }) {
+  //     return (proxy) => {
+  //       const renderName = ref('Dante')
+  //       return h(Fragment, [
+  //         slots.header(renderName),
+  //         h('div', 'renderComponent 中原本的内容'),
+  //         slots.footer(renderName)
+  //       ])
+  //     }
+  //   },
+  // }
+  // const componnet1 = {
+  //   setup(props, { attrs, slots, emit, expose }) {
+  //     return (proxy) => {
+  //       // 根据格式区分子节点是不是插槽, 插槽本身是一个函数, 并返回虚拟接节点, 在子组件中指定位置去渲染插槽
+  //       return h(renderComponent, null, {
+  //         header: (name) => h('header', `header-${ name.value }`),
+  //         footer: (name) => h('footer', `footer-${ name.value }`)
+  //       })
+  //     }
+  //   }
+  // }
+  // ------------------------------------------------ 测试 Component 插槽 ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Component 事件、expose ------------------------------------------------
+  const renderComponent = {
+    setup(props, { slots, emit, expose }) {
+      const count = ref(10)
+      // 暴露一些数据给外部
+      expose({ test: '一段测试文字' })
+
+      return (proxy) => {
+        return h('button', {
+          class: 'btn',
+          onClick: () => {
+            emit('cumulative', count.value++)
+          }
+        }, '点击派发事件')
+      }
+    },
+  }
+  const componnet1 = {
+    setup(props, { attrs, slots, emit, expose }) {
+      return () => h(renderComponent, { onCumulative: (value) => alert(value) })
+    }
+  }
+  // ------------------------------------------------ 测试 Component 事件、expose ------------------------------------------------
   
   // 组件由两个虚拟节点组成, 1 通过 h(VueComponent) (它就是 vnode, 组件的虚拟节点) 产生的是组件内的虚拟节点(内部通过 render 方法拿到虚拟节点的返回值渲染)
   // 2 通过 render 函数返回的虚拟节点, 这个虚拟节点才是最终要返回的内容, 虚拟节点对应的渲染子节点 (subTree)
@@ -234,10 +253,10 @@
   // const vnode = h('div', { }, h('span'), h('span'), h('span'))
   // console.log('vnode:', vnode)
 
-  // setTimeout(() => {
-  //   // render(h1VNode2, app)
-  //   // render(null, app)
-  // }, 4000);
+  setTimeout(() => {
+    // render(h1VNode2, app)
+    // render(null, app) // 销毁组件
+  }, 4000);
 
   // ------------------------------------------------ 测试最长递增子序列 ------------------------------------------------
   // console.log(getSequenceOther([4, 2, 3, 0]))

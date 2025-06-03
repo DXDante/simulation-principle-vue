@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>runtime-dom</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // runtime-dom 他的作用就是提供 DOM-API (系列操作 DOM 的 API 方法)
+  // @vue/runtime-dom -- 基于 --> @vue/runtime-core -- 基于 --> @vue/reactivity
+
+  // 1) createRenderer 我们可以自己创建渲染器 (让我们自己提供渲染的方式)
+  // 2) render 用内置的渲染器来进行渲染 (渲染 dom 元素的)
+  // 3) h 方法可以创建一个虚拟 dom (type, propsOrChildren, children)
+
+  // 虚拟 DOM 节点
+  const h1VNode1 = h(
+    'div',
+    {
+      style: { color: '#11171c' },
+      class: 'info',
+      onClick() { console.log('控制台输出:', prompt('将信息打印至控制台')) },
+      'data-index': 0
+    },
+    'Dante-Master'
+    // [
+    //   h('span', 'Dante'),
+    //   h('span', '-'),
+    //   h('span', 'Master'),
+    // ]
+  )
+  const h1VNode2 = h(
+    'div',
+    {
+      style: { color: '#ea5413' },
+      class: '',
+      onClick() { console.log('控制台输出:', prompt('将信息打印至控制台')) },
+      'data-index': 0
+    },
+    // 'Jack-Master'
+    [
+      h('span', 'Jack'),
+      h('span', '-'),
+      h('span', 'Master'),
+    ]
+  )
+
+  
+
+  // // 内置的渲染器
+  // render(h1VNode, app)
+
+  // // 自定义渲染器
+  // const renderer = createRenderer({
+  //   // 创建元素
+  //   createElement(type) {
+  //     return document.createElement(type)
+  //   },
+  //   // 设置文本
+  //   setElementText(el, text) {
+  //     el.textContent = text
+  //   },
+  //   // 插入
+  //   insert(el, container) {
+  //     console.log(el, container)
+  //     container.appendChild(el)
+  //   }
+  // })
+
+  // // 自定义渲染器
+  // const renderer = createRenderer(renderOptions)
+  // renderer.render(h1VNode, app)
+
+  // 自定义方法渲染器
+  render(h1VNode1, app)
+
+  setTimeout(() => {
+    render(h1VNode2, app)
+  }, 4000);
+</script>
+</html>
