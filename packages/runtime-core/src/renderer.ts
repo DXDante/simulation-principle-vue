@@ -1,10 +1,11 @@
 import { __hasOwnProperty, ShapeFlags } from "@vue/shared"
 import { Fragment, isSameVnode, Text } from "./createVNode"
 import { getSequence } from './seq'
-import { reactive } from "@vue/reactivity"
+import { isRef, reactive } from "@vue/reactivity"
 import { ReactiveEffect } from "@vue/reactivity"
 import { queueJob } from "./scheduler"
 import { createComponentInstance, setupComponent } from "./component"
+import { invokeArray } from "./apiLifeCycle"
 
 /**
  * createRenderer 可跨平台, 它不关心如何渲染
@@ -138,32 +139,59 @@ export const createRenderer = (renderOptions) => {
     // 组件更新, 组件没有 el, render 函数返回的那个子虚拟节点才是渲染的节点(subTree), 即 n2.component.subTree.el = n1.component.subTree.el
   }
 
+  /** 渲染组件 **/
+  const renderComponent = (instance) => {
+    // props、attrs 统称为 属性
+    const { render, vnode, proxy } = instance
+    
+    // 状态组件
+    if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+      return render.call(proxy, proxy)
+    }
+    // 函数组件(这里简易实现)
+    return vnode.type(vnode.props)
+  }
+
   /** 创建 effect 关联到 render 副作用函数 **/
   const setupRenderEffect = (instance, container, anchor) => {
     const { render } = instance
     // 渲染、更新都会走这, 这里其实就是副作用函数, 使用到 state 时, state 就会收集这个副作用函数依赖到 effect 实例上
     const componentUpdateFn = () => {
+      const { proxy, next, bm, m, bu, u } = instance
       // 初始挂载
       if (!instance.isMounted) {
+        // 生命周期 "挂载前" = beforeMount, 依次执行
+        if (bm) { invokeArray(bm) }
+
         // call 第 1 个参数表示改变的 this 的引用为这个(因为在声明组件时 render 函数里用到了 this 去访问数据, 所以把这个 this 改变为 state 的引用), 第 2 个参数是被调用函数形参第 1 个参数
         // render 函数返回的"子虚拟节点"(子树)
-        const subTree = render.call(instance.proxy, instance.proxy)
+        // const subTree = render.call(proxy, proxy)
+        const subTree = renderComponent(instance)
         // 把"子树"插入到指定位置
         patch(null, subTree, container, anchor)
         instance.isMounted = true
         instance.subTree = subTree
+
+        // 生命周期 "挂载完成" = mounted, 依次执行
+        if (m) { invokeArray(m) }
       }
       // 基于状态的组件更新 (比较两个子虚拟节点的差异, 就会走组件的 Diff 算法去比对, 再更新)
       else {
-        const { next } = instance
         // 有 next 表示需要更新属性 / 插槽, 更新完数据后后续再走 render 重新渲染
         if (next) {
           updateComponentPreRender(instance, next)
         }
 
-        const subTree = render.call(instance.proxy, instance.proxy)
+        // 生命周期 "更新前" = beforeUpdate, 依次执行
+        if (bu) { invokeArray(bu) }
+
+        // const subTree = render.call(proxy, proxy)
+        const subTree = renderComponent(instance)
         patch(instance.subTree, subTree, container, anchor)
         instance.subTree = subTree
+
+        // 生命周期 "更新完成" = updated, 依次执行
+        if (u) { invokeArray(u) }
       }
     }
 
@@ -186,7 +214,7 @@ export const createRenderer = (renderOptions) => {
 
   /** 更新组件 **/
   const updateComponent = (n1, n2, container, anchor) => {
-    console.log('组件更新', n1, n2);
+    console.log('组件准备更新: n1, n2', n1, n2);
     // 复用组件实例
     const instance = (n2.component = n1.component)
 
@@ -560,7 +588,7 @@ export const createRenderer = (renderOptions) => {
       n1 = null // 就会执行后续的 n2 的初始化
     }
 
-    const { type, shapeFlag } = n2
+    const { type, shapeFlag, ref } = n2
     switch (type) {
       // 文本类型
       case Text:
@@ -580,6 +608,21 @@ export const createRenderer = (renderOptions) => {
           processComponent(n1, n2, container, anchor)
         }
     }
+
+    // 设置通过 ref 获取的 "组件 / 组件 expose 内容 / DOM 元素"
+    // n2 判断是 DOM / 组件 / 组件暴露的 expose
+    if (ref != null && isRef(ref)) {
+      setRef(ref, n2)
+    }
+  }
+
+  /** 设置通过 ref 获取的 DOM 元素 / 组件实例 / 组件 expose 暴露的内容 **/
+  const setRef = (rawRef, vnode) => {
+    // 判断是否是状态组件, 是状态组件取 exposed, 如果没有则取 proxy(代理对象, 代理是实例), 否则就是取节点的 DOM
+    const value = vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT
+    ? vnode.component.exposed || vnode.component.proxy
+    : vnode.el
+    rawRef.value = value
   }
 
   /** 将虚拟节点变成真实节点进行渲染, 多次调用会进行虚拟节点比较再更新 **/

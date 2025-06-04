@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>runtime-dom</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref, onBeforeMount, onMounted, onBeforeUpdate, onUpdated } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref, onBeforeMount, onMounted, onBeforeUpdate, onUpdated, getCurrentInstance } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // ------------------------------------------------ 测试 Component 生命周期 ------------------------------------------------
+  // const componnet1 = {
+  //   setup(props, { attrs, slots, emit, expose }) {
+  //     // 这些钩子只能在组件中使用, 所以需要和当前的 instance 实例关联在一起, 在特定时期被调用
+  //     console.log('parent setup', getCurrentInstance())
+  //     const info = ref('默认文字')
+  //     onBeforeMount(() => { console.log('parent onBeforeMount') })
+  //     onMounted(() => { console.log('parent onMounted') })
+  //     onBeforeUpdate(() => { console.log('parent onBeforeUpdate') })
+  //     onUpdated(() => { console.log('parent onUpdated') })
+  //     setTimeout(() => { info.value = '改变后文字' }, 2000);
+
+  //     return () => h('div', { info }, [
+  //       h('div', `父组件:${ info.value }`),
+  //       h(childComponent1, { info: info.value })
+  //     ])
+  //   }
+  // }
+  // const childComponent1 = {
+  //   props: { info: String },
+  //   setup(props, { attrs, slots, emit, expose }) {
+  //     // 这些钩子只能在组件中使用, 所以需要和当前的 instance 实例关联在一起, 在特定时期被调用
+  //     console.log('child setup', getCurrentInstance())
+  //     onBeforeMount(() => { console.log('child onBeforeMount, 内部调用 getCurrentInstance:', getCurrentInstance()) })
+  //     onMounted(() => { console.log('child onMounted') })
+  //     onBeforeUpdate(() => { console.log('child onBeforeUpdate') })
+  //     onUpdated(() => { console.log('child onUpdated') })
+  //     return () => h('div', null, `子组件:${ props.info }`)
+  //   }
+  // }
+  // ------------------------------------------------ 测试 Component 生命周期 ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Component ref ------------------------------------------------
+  const componnet1 = {
+    setup(props, { attrs, slots, emit, expose }) {
+      const comp = ref(null)
+
+      onMounted(() => {
+        // 获取的是组件的实例
+        console.log('comp.value', comp.value)
+      })
+
+      return () => h('div', null, [
+        h('div', `父组件:`),
+        // 内部实现, 如果 ref 放到组件上, 指代的是组件实例, 如果渲染的是 "元素" 则是指代 DOM 元素
+        // 如果该组件有 expose, 则是 expose 暴露的内容
+        h(childComponent1, { ref: comp, a: 100 })
+        // h('div', { ref: comp, a: 100 })
+      ])
+    }
+  }
+  const childComponent1 = {
+    props: { a: Number },
+    setup(props, { attrs, slots, emit, expose }) {
+      // 默认暴露的是组件的实例, 如果指定暴露, 那就是暴露的指定的内容
+      // expose({ a: 200 })
+      return () => h('div', null, `子组件:`)
+    }
+  }
+  // ------------------------------------------------ 测试 Component ref ------------------------------------------------
+  render(h(componnet1, {}), app)
+
+  setTimeout(() => {
+    // render(h1VNode2, app)
+    // render(null, app) // 销毁组件
+  }, 4000);
+</script>
+</html>

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>依赖 - 注入</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // ------------------------------------------------ 测试 Component 事件、expose ------------------------------------------------
+  const renderComponent = {
+    setup(props, { slots, emit, expose }) {
+      const count = ref(10)
+      // 暴露一些数据给外部
+      expose({ test: '一段测试文字' })
+
+      return (proxy) => {
+        return h('button', {
+          class: 'btn',
+          onClick: () => {
+            emit('cumulative', count.value++)
+          }
+        }, '点击派发事件')
+      }
+    },
+  }
+  const componnet1 = {
+    setup(props, { attrs, slots, emit, expose }) {
+      return () => h(renderComponent, { onCumulative: (value) => alert(value) })
+    }
+  }
+  // ------------------------------------------------ 测试 Component 事件、expose ------------------------------------------------
+  
+  render(h(componnet1, {}), app)
+
+  setTimeout(() => {
+    // render(h1VNode2, app)
+    // render(null, app) // 销毁组件
+  }, 4000);
+</script>
+</html>

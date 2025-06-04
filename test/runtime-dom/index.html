@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>runtime-dom</title>
+  <title>文本、DOM、组件、函数式组件节点</title>
   <link rel="stylesheet" href="../../common/reset-default.css">
   <link rel="stylesheet" href="../../common/common.css">
   <link rel="stylesheet" href="../../common/index.css">
@@ -234,11 +234,20 @@
     }
   }
   // ------------------------------------------------ 测试 Component 事件、expose ------------------------------------------------
+
+  // ------------------------------------------------ 测试 Component 函数式组件(不推荐, 无优化) ------------------------------------------------
+  // const functionalComponent = (props) => {
+  //   return h('div', `渲染函数式组件 => 姓名:${ props.name }, 年龄:${ props.age }`)
+  // }
+  // ------------------------------------------------ 测试 Component 函数式组件(不推荐, 无优化) ------------------------------------------------
   
   // 组件由两个虚拟节点组成, 1 通过 h(VueComponent) (它就是 vnode, 组件的虚拟节点) 产生的是组件内的虚拟节点(内部通过 render 方法拿到虚拟节点的返回值渲染)
   // 2 通过 render 函数返回的虚拟节点, 这个虚拟节点才是最终要返回的内容, 虚拟节点对应的渲染子节点 (subTree)
   render(h(componnet1, {}), app)
   // render(h(componnet2, { a: 1, b: 2, name: 'Jack', age: 33 }), app)
+
+  // 函数式组件
+  // render(h(functionalComponent, { name: 'Dante', age: 33 }), app)
 
   // VNode 创建形式
   // const vnode = h('div')

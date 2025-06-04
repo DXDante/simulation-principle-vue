@@ -61,7 +61,7 @@ export const setupComponent = (instance) => {
         const eventName = `on${event[0].toUpperCase()}${event.substring(1)}`
         // 从组件实例虚拟节点上找到原始 "事件属性"
         const hanler = vnodeProps[eventName]
-        console.log('instance', instance)
+        console.log('instance.vnode.props 传递进子组件的自定义事件函数:', instance.vnode.props)
         if (__isFunction(hanler)) {
           hanler(...payload)
         }
@@ -70,7 +70,12 @@ export const setupComponent = (instance) => {
         instance.exposed = value
       }
     }
+
+    // setup 调用前吧实例设置到全局, 执行完后清除
+    setCurrentInstance(instance)
     const setupResult = setup(instance.props, setupContext)
+    unsetCurrentInstance()
+
     // 返回渲染函数
     if (__isFunction(setupResult)) {
       instance.render = setupResult
@@ -161,4 +166,19 @@ const instanceProxyHandler = {
 const publicProperty = {
   $attrs: (instance) => instance.attrs,
   $slots: (instance) => instance.slots
+}
+
+// 当前组件实例, 用于"生命周期钩子" 关联 当前组件实例(做法类似于响应式数据的依赖收集)
+export let currentInstance = null
+
+export const getCurrentInstance = () => {
+  return currentInstance  
+}
+
+export const setCurrentInstance = (instance) => {
+  currentInstance = instance
+}
+
+export const unsetCurrentInstance = () => {
+  currentInstance = null
 }
