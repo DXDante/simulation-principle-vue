@@ -5,7 +5,7 @@ import { __hasOwnProperty, __isFunction, ShapeFlags } from '@vue/shared'
  * 创建组件实例
  * @param vnode 
  */
-export const createComponentInstance = (vnode) => {
+export const createComponentInstance = (vnode, parent) => {
   // 组件可以依据自己的状态重新渲染, 组件其实就是 effect
   // 解构 type, props 就是提供给组件的数据(类似于创建元素提供的属性数据), children 就是组件的插槽
   const { type: { props: propsOptions = {} } } = vnode
@@ -24,7 +24,12 @@ export const createComponentInstance = (vnode) => {
     proxy: null, // 用来代理 props, attrs, data 中的数据, 让使用者更方便的访问
     render: null, // 渲染函数
     setupState: {}, // setup 返回对象的数据
-    exposed: null // 暴露的数据
+    exposed: null, // 暴露的数据
+    parent,
+    // component1 -> component2 -> component3, 后代的所有组件 provide 都一样, 因为每个组件的 provide 取自父级
+    // parent = {}, child = 引用 parent 的
+    // child 增加 provide, 创建拷贝对象再赋值 const newProvides = Object.create(引用 parent 的), newProvides[key] = value
+    provides: parent ? parent.provides : Object.create(null)
   }
 
   // // 组件状态, 拿到数据创建响应式

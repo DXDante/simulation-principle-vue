@@ -1,5 +1,5 @@
-import { __hasOwnProperty, ShapeFlags } from "@vue/shared"
-import { Fragment, isSameVnode, Text } from "./createVNode"
+import { __hasOwnProperty, __isArray, __isBoolean, __isNull, __isNumber, __isString, __isUndefined, ShapeFlags } from "@vue/shared"
+import { createVNode, Fragment, isSameVnode, Text } from "./createVNode"
 import { getSequence } from './seq'
 import { isRef, reactive } from "@vue/reactivity"
 import { ReactiveEffect } from "@vue/reactivity"
@@ -26,7 +26,7 @@ export const createRenderer = (renderOptions) => {
 
   /************************************************************ 元素、节点操作 ************************************************************/
   /** 挂载元素 **/
-  const mountElement = (vnode, container, anchor) => {
+  const mountElement = (vnode, container, anchor, parentComponent) => {
     const { type, children, props, shapeFlag } = vnode
     // 第 1 次渲染时让虚拟节点 和 真实 DOM 创建关联 vnode.el = 真实 DOM
     // 第 2 次渲染如果没有值, 需要移除真实 DOM, 如果是新的 vnode, 可以和上 1 次的 vnode 做比对, 之后更新对应的 el 元素, 后续再复用这个 DOM 元素
@@ -44,17 +44,30 @@ export const createRenderer = (renderOptions) => {
     }
     // 多个节点
     else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-      mountChildren(children, el)
+      mountChildren(children, el, parentComponent)
     }
 
     hostInsert(el, container, anchor)
   }
 
-  /** 挂载子元素 **/
-  const mountChildren = (children, container) => {
+  /** 处理子节点集为值的情况, 直接用于渲染的内容时, 需要转换为虚拟节点 **/
+  const normalize = (children) => {
     for(let i = 0; i < children.length; i++) {
-      // TODO: 可能是纯文本
-      patch(null, children[i], container)
+      let child = children[i]
+      if (__isString(child) || __isNumber(child) || __isBoolean(child) || __isUndefined(child) || __isNull(child)) {
+        children[i] = createVNode(Text, null, String(child))
+      }
+    }
+    return children
+  }
+
+  /** 挂载子元素 **/
+  const mountChildren = (children, container, parentComponent) => {
+    // 这里是解决 children 中存放的用于渲染的值时, 把值转换为文本节点
+    normalize(children)
+    for(let i = 0; i < children.length; i++) {
+      let child = children[i]
+      patch(null, child, container, parentComponent)
     }
   }
 
@@ -101,24 +114,24 @@ export const createRenderer = (renderOptions) => {
 
   /************************************************************ 处理 Fragment 流程 ************************************************************/
   /** 处理 Fragment 流程 **/
-  const processFragment = (n1, n2, container) => {
+  const processFragment = (n1, n2, container, parentComponent) => {
     // 初始挂载子节点
     if (n1 == null) {
-      mountChildren(n2.children, container)
+      mountChildren(n2.children, container, parentComponent)
     }
     // 对比更新子节点
     else {
-      patchChildren(n1, n2, container)
+      patchChildren(n1, n2, container, parentComponent)
     }
   }
   /************************************************************ 处理 Fragment 流程 ************************************************************/
 
   /************************************************************ 处理 组件 流程 ************************************************************/
   /** 处理组件 **/
-  const processComponent = (n1, n2, container, anchor) => {
+  const processComponent = (n1, n2, container, anchor, parentComponent) => {
     // 挂载组件
     if (n1 == null) {
-      mountComponent(n2, container, anchor)
+      mountComponent(n2, container, anchor, parentComponent)
     }
     // 更新组件
     else {
@@ -127,9 +140,9 @@ export const createRenderer = (renderOptions) => {
   }
   
   /** 挂载组件 **/
-  const mountComponent = (vnode, container, anchor) => {
+  const mountComponent = (vnode, container, anchor, parentComponent) => {
     // 1) 创建组件实例, 组件节点保存当前组件实例
-    const instance = (vnode.component = createComponentInstance(vnode))
+    const instance = (vnode.component = createComponentInstance(vnode, parentComponent))
     // 2) 组件实例初始化属性
     setupComponent(instance)
     // 3) 创建 Effect, 副作用函数调用 render 方法执行, 使用到的数据做依赖收集, render 返回的虚拟节点挂载到指定容器
@@ -168,7 +181,7 @@ export const createRenderer = (renderOptions) => {
         // const subTree = render.call(proxy, proxy)
         const subTree = renderComponent(instance)
         // 把"子树"插入到指定位置
-        patch(null, subTree, container, anchor)
+        patch(null, subTree, container, anchor, instance)
         instance.isMounted = true
         instance.subTree = subTree
 
@@ -187,7 +200,7 @@ export const createRenderer = (renderOptions) => {
 
         // const subTree = render.call(proxy, proxy)
         const subTree = renderComponent(instance)
-        patch(instance.subTree, subTree, container, anchor)
+        patch(instance.subTree, subTree, container, anchor, instance)
         instance.subTree = subTree
 
         // 生命周期 "更新完成" = updated, 依次执行
@@ -284,19 +297,19 @@ export const createRenderer = (renderOptions) => {
 
   /************************************************************ 处理 元素节点 流程 ************************************************************/
   /** 处理元素节点流程 **/
-  const processElement = (n1, n2, container, anchor) => {
+  const processElement = (n1, n2, container, anchor, parentComponent) => {
     // 初始挂载元素
     if (n1 === null) {
-      mountElement(n2, container, anchor)
+      mountElement(n2, container, anchor, parentComponent)
     }
     // 比对差异更新, 后续处理子节点相关
     else {
-      patchElement(n1, n2, container)
+      patchElement(n1, n2, container, parentComponent)
     }
   }
 
   /** 处理 vnode **/
-  const patchElement = (n1, n2, container) => {
+  const patchElement = (n1, n2, container, parentComponent) => {
     // 1) 比较元素的差异, 肯定就是复用 DOM
     // 2) 比较元素的属性、元素子节点
 
@@ -305,7 +318,7 @@ export const createRenderer = (renderOptions) => {
     const { props: newProps = {} } = n2
 
     patchProps(oldProps, newProps, el)
-    patchChildren(n1, n2, el)
+    patchChildren(n1, n2, el, parentComponent)
   }
 
   /** 处理父级 props(class, style, 事件, 其他属性), el 是指父级 element **/
@@ -324,7 +337,7 @@ export const createRenderer = (renderOptions) => {
   }
 
   /** 处理子元素, el 是指父级 element **/
-  const patchChildren = (n1, n2, el) => {
+  const patchChildren = (n1, n2, el, parentComponent) => {
     // 子元素种类: text, [text, text], [vnode, vnode], null
     // 子元素对比:
     // [新的]      [旧的]          [操作方式]
@@ -351,6 +364,11 @@ export const createRenderer = (renderOptions) => {
     const { children: c1, shapeFlag: prevShapeFlag } = n1
     const { children: c2, shapeFlag: shapeFlag } = n2
 
+    // 这里是解决 children 中存放的用于渲染的值时, 把值转换为文本节点
+    if (__isArray(c2)) {
+      normalize(c2)
+    }
+
     // 1) 新的是文本, 老的是数组移除老的
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
@@ -365,7 +383,7 @@ export const createRenderer = (renderOptions) => {
     // 3) 老的是数组, 新的是数组, 全量 diff 算法
     else if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        patchKeyedChildren(c1, c2, el)
+        patchKeyedChildren(c1, c2, el, parentComponent)
       }
       // 4) 老的是数组, 新的不是数组, 移除老的子节点
       else {
@@ -378,7 +396,7 @@ export const createRenderer = (renderOptions) => {
 
       // 6) 老的是文本, 新的是数组
       if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        mountChildren(c2, el)
+        mountChildren(c2, el, parentComponent)
       }
     }
   }
@@ -392,7 +410,7 @@ export const createRenderer = (renderOptions) => {
    * 2) 比完头尾, 通过比对完的索引 i、比对完的尾部索引 e1、e2 (分别代表旧数组 和 新数组比对完最后的索引), 可以得出 头/尾 的部分是否要 增加/删除
    * 3) 比对中间剩余乱序的部分, 旧的比对新的, 旧的多余的节点删除, 新旧都存在的复用更新, 最终按照新的顺序以倒叙方式根据参照物依次插入, 参照物就是插入节点在数组中的下一个节点
    */
-  const patchKeyedChildren = (c1, c2, el) => {
+  const patchKeyedChildren = (c1, c2, el, parentComponent) => {
     // appendChild, removeChild, insertBefore
     // 1) 减少比对范围, 先从头开始挨个比, 直到发现不一致的, 做记录, 然后再从尾开始挨个比, 确定变化的一个范围
     //       ┏━━━━┓
@@ -419,7 +437,7 @@ export const createRenderer = (renderOptions) => {
       const n2 = c2[i]
       // 相同节点, 就要更新属性, 并且递归的继续比较子节点
       if (isSameVnode(n1, n2)) {
-        patch(n1, n2, el) // 更新 "当前节点" 和 "儿子节点" 的各个属性 (递归比较子节点)
+        patch(n1, n2, el, null, parentComponent) // 更新 "当前节点" 和 "儿子节点" 的各个属性 (递归比较子节点)
       } else {
         break
       }
@@ -438,7 +456,7 @@ export const createRenderer = (renderOptions) => {
       const n2 = c2[e2]
       // 相同节点, 就要更新属性, 并且递归的继续比较子节点
       if (isSameVnode(n1, n2)) {
-        patch(n1, n2, el) // 更新 "当前节点" 和 "儿子节点" 的各个属性 (递归比较子节点)
+        patch(n1, n2, el, null, parentComponent) // 更新 "当前节点" 和 "儿子节点" 的各个属性 (递归比较子节点)
       } else {
         break
       }
@@ -465,7 +483,7 @@ export const createRenderer = (renderOptions) => {
         let anchor = c2[nextPos]?.el
         
         while(i <= e2) {
-          patch(null, c2[i], el, anchor)
+          patch(null, c2[i], el, anchor, parentComponent)
           i++
         }
       }
@@ -536,7 +554,7 @@ export const createRenderer = (renderOptions) => {
           // newIndexToOldMapIndex 其实就是对应下方 "4) 调整顺序" 里的 children2 中间倒叙插入的部分, 那么下方 "4) 调整顺序" 倒叙插入部分循环的下标为 1、2 的节点就 "不用移动"
           newIndexToOldMapIndex[newIndex - s2] = i + 1
           // ━━━━━━━━━━━━━━━━━━━━ Diff 优化关键部分 ━━━━━━━━━━━━━━━━━━━━
-          patch(vnode, c2[newIndex], el)
+          patch(vnode, c2[newIndex], el, null, parentComponent)
         }
       }
       console.log('newIndexToOldMapIndex:', newIndexToOldMapIndex)
@@ -557,7 +575,7 @@ export const createRenderer = (renderOptions) => {
         const anchor = c2[newIndex + 1]?.el
         // 需新建的节点 (经过上面 3 的步骤就会把复用的节点属性通过比对全部更新, 会在新节点上赋值 el 为真实 DOM, 可通过该属性判断是否是 "新建的节点")
         if (!vnode.el) {
-          patch(null, vnode, el, anchor)
+          patch(null, vnode, el, anchor, parentComponent)
         }
         // 已有的节点
         else {
@@ -578,7 +596,7 @@ export const createRenderer = (renderOptions) => {
   /************************************************************ 处理 元素节点 流程 ************************************************************/
 
   /** 渲染 和 更新都走这里, anchor 如果有值表示在之前插入, 否则就是追加 **/
-  const patch = (n1, n2, container, anchor = null) => {
+  const patch = (n1, n2, container, anchor = null, parentComponent = null) => {
     // 节点完全相同直接跳过
     if (n1 === n2) { return }
 
@@ -596,16 +614,16 @@ export const createRenderer = (renderOptions) => {
         break;
       // Fragment 类型(相当于文档碎片, Vue 2 中必须要用根节点, Vue 3 则可不必, V3 多节点就是基于 Fragment 实现的)
       case Fragment:
-        processFragment(n1, n2, container)
+        processFragment(n1, n2, container, parentComponent)
         break;
       default:
         // 对元素的处理
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          processElement(n1, n2, container, anchor)
+          processElement(n1, n2, container, anchor, parentComponent)
         }
         // 对组件的处理 (函数式组件在 Vue 3 中已经废弃了, 因为没有性能节约, 推荐的是状态组件)
         else if (shapeFlag & ShapeFlags.COMPONENT) {
-          processComponent(n1, n2, container, anchor)
+          processComponent(n1, n2, container, anchor, parentComponent)
         }
     }
 

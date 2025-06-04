@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>依赖 - 注入</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref, provide, inject } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref, provide, inject } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // ------------------------------------------------ 测试 Component 依赖注入 ------------------------------------------------
+  // 父组件提供数据, 后带组件可获取数据
+  const c1 = {
+    setup() {
+      const text = ref('一段文字')
+      setTimeout(() => {
+        text.value = '更改后的一段文字'
+      }, 2000);
+      
+      provide('publicData', { text })
+      return () => h(c2)
+    }
+  }
+  const c2 = {
+    setup() {
+      return () => h(c3)
+    }
+  }
+  const c3 = {
+    setup() {
+      const injectPublicData = inject('publicData')
+      const name = inject('name', 'Jack')
+      console.log('injectPublicData:', injectPublicData)
+      console.log('name:', name)
+      return () => h('div', [`c3 注入的 text: ${ injectPublicData.text.value }`, ` ┃ c3 注入的 name: ${ name }`])
+      // return () => h('div', `c3 注入的 text: ${ injectPublicData.text.value }`)
+    }
+  }
+  // ------------------------------------------------ 测试 Component 依赖注入 ------------------------------------------------
+  // 将 c1 的 provide 赋给 c2, c2 的 provide 赋给 c3
+  // c1 -> c2 -> c3
+  render(h(c1, {}), app)
+
+  setTimeout(() => {
+    // render(h1VNode2, app)
+    // render(null, app) // 销毁组件
+  }, 4000);
+</script>
+</html>
