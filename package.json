@@ -10,13 +10,14 @@
     "build-shared": "node scripts/build.js shared -f esm",
     "build-runtime-dom": "node scripts/build.js runtime-dom -f esm",
     "build-runtime-core": "node scripts/build.js runtime-core -f esm",
-    "build-runtime-core-and-dom": "npm run build-runtime-core & npm run build-runtime-dom"
+    "build-runtime-core-and-dom": "concurrently \"npm run build-runtime-core\" \"npm run build-runtime-dom\""
   },
   "keywords": [],
   "author": "Dante-Master <396840617@qq.com>",
   "license": "ISC",
   "packageManager": "pnpm@10.11.0",
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "esbuild": "^0.25.4",
     "minimist": "^1.2.8"
   },
