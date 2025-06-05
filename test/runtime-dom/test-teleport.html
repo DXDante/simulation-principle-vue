@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Teleport</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="root"></div>
+  <div id="root2"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref, Teleport } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref, Teleport } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // ------------------------------------------------ 测试 Component Teleport ------------------------------------------------
+  const c1 = {
+    props: { text: String },
+    setup: (proxy) => () => h('div', proxy.text)
+  }
+  // ------------------------------------------------ 测试 Component Teleport ------------------------------------------------
+  render(h(Teleport, { to: '#root' }, h(c1, { text: '初次 - 渲染 (app 中挂载 Teleport 组件, 真实渲染组件内容渲染到指定位置)' })), app)
+  // render(h(Teleport, { to: '#root' }, ['ABC', 123]), app)
+
+  setTimeout(() => {
+    render(h(Teleport, { to: '#root2' }, h(c1, { text: '更新 - 渲染 (app 中挂载 Teleport 组件, 真实渲染组件内容渲染到指定位置)' })), app)
+    // render(h(Teleport, { to: '#root' }, ['ABC', 789]), app)
+    // render(null, app) // 销毁组件
+  }, 4000);
+</script>
+</html>

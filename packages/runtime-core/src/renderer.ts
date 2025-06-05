@@ -27,7 +27,7 @@ export const createRenderer = (renderOptions) => {
   /************************************************************ 元素、节点操作 ************************************************************/
   /** 挂载元素 **/
   const mountElement = (vnode, container, anchor, parentComponent) => {
-    const { type, children, props, shapeFlag } = vnode
+    const { type, children, props, shapeFlag, transition } = vnode
     // 第 1 次渲染时让虚拟节点 和 真实 DOM 创建关联 vnode.el = 真实 DOM
     // 第 2 次渲染如果没有值, 需要移除真实 DOM, 如果是新的 vnode, 可以和上 1 次的 vnode 做比对, 之后更新对应的 el 元素, 后续再复用这个 DOM 元素
     const el = (vnode.el = hostCreateElement(type))
@@ -47,7 +47,13 @@ export const createRenderer = (renderOptions) => {
       mountChildren(children, el, parentComponent)
     }
 
+    // 插入前 (Transition 组件使用)
+    transition && transition.beforeEnter(el)
+
     hostInsert(el, container, anchor)
+
+    // 插入后 (Transition 组件使用)
+    transition && transition.enter(el)
   }
 
   /** 处理子节点集为值的情况, 直接用于渲染的内容时, 需要转换为虚拟节点 **/
@@ -73,9 +79,16 @@ export const createRenderer = (renderOptions) => {
 
   /** 移除 DOM **/
   const unMount = (vnode) => {
-    const { type, children, el, shapeFlag, component } = vnode
+    const { type, children, el, shapeFlag, component, transition } = vnode
+    const performRemove = () => { hostRemove(el) }
+
     if (type === Fragment) {
       unMountChildren(children)
+      return
+    }
+    // Teleport 组件内部做移除
+    if (shapeFlag & ShapeFlags.TELEPORT) {
+      type.remove(vnode, unMountChildren)
       return
     }
     // 组件的卸载是移除 render 函数返回的虚拟节点对应的 DOM
@@ -83,7 +96,14 @@ export const createRenderer = (renderOptions) => {
       unMount(component.subTree)
       return
     }
-    hostRemove(el)
+
+    // 移除前 (Transition 组件使用)
+    if (transition) {
+      transition.leave(el, performRemove)
+      return
+    }
+    
+    performRemove()
   }
 
   /** 移除子元素 DOM **/
@@ -155,14 +175,14 @@ export const createRenderer = (renderOptions) => {
   /** 渲染组件 **/
   const renderComponent = (instance) => {
     // props、attrs 统称为 属性
-    const { render, vnode, proxy } = instance
+    const { render, vnode, proxy, props, attrs, slots } = instance
     
     // 状态组件
     if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
       return render.call(proxy, proxy)
     }
     // 函数组件(这里简易实现)
-    return vnode.type(vnode.props)
+    return vnode.type(attrs, { slots })
   }
 
   /** 创建 effect 关联到 render 副作用函数 **/
@@ -223,6 +243,8 @@ export const createRenderer = (renderOptions) => {
     // 复用虚拟节点, 把新的赋值
     instance.vnode = next
     updateProps(instance, instance.props, next.props)
+    // 更新插槽
+    Object.assign(instance.slots, next.children)
   }
 
   /** 更新组件 **/
@@ -620,6 +642,16 @@ export const createRenderer = (renderOptions) => {
         // 对元素的处理
         if (shapeFlag & ShapeFlags.ELEMENT) {
           processElement(n1, n2, container, anchor, parentComponent)
+        }
+        // Teleport 组件
+        else if (shapeFlag & ShapeFlags.TELEPORT) {
+          type.process(n1, n2, container, anchor, parentComponent, {
+            mountChildren,
+            patchChildren,
+            move(vnode, container, anchor) {
+              hostInsert((vnode.component?.subTree.el || vnode.el), container, anchor)
+            }
+          })
         }
         // 对组件的处理 (函数式组件在 Vue 3 中已经废弃了, 因为没有性能节约, 推荐的是状态组件)
         else if (shapeFlag & ShapeFlags.COMPONENT) {

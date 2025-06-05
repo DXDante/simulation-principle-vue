@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transition</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+  <style>
+    .v-enter-active,
+    .v-leave-active {
+      transition: opacity 1s ease;
+    }
+
+    .v-enter-from,
+    .v-leave-to {
+      opacity: 0;
+    }
+
+    .x-enter-active,
+    .x-leave-active {
+      transition: opacity 0.8s ease;
+    }
+
+    .x-enter-from,
+    .x-leave-to {
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref, Transition } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref, Transition } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // ------------------------------------------------ 测试 Component Transition ------------------------------------------------
+  const transitionProps = {
+    name: 'x',
+    onBeforeEnter() {
+      console.log('onBeforeEnter')
+    },
+    onEnter() {
+      console.log('onEnter')
+    },
+    onLeave() {
+      console.log('onLeave')
+    }
+  }
+
+  // 以下由于未完成渲染指令 v-if, 就直接重新渲染整个模拟实现
+  render(h(Transition, transitionProps, {
+    a: 1,
+    default: () => h('div', {
+      style: { width: '100px', height: '100px', backgroundColor: '#ea5413' }
+    })
+  }), app)
+
+  setTimeout(() => {
+    render(h(Transition, transitionProps, {
+      b: 2,
+      default: () => h('p', {
+        style: { width: '100px', height: '100px', backgroundColor: 'rgb(28, 32, 255)' }
+      })
+    }), app)
+  }, 1000);
+
+  setTimeout(() => {
+    render(h(Transition, transitionProps, {
+      c: 3,
+      default: () => h('div', {
+        style: { width: '100px', height: '100px', backgroundColor: '#ea5413' }
+      })
+    }), app)
+  }, 2000);
+  // ------------------------------------------------ 测试 Component Transition ------------------------------------------------
+</script>
+</html>
