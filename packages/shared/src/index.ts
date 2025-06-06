@@ -83,6 +83,13 @@ export const __isStringNumber = (p: unknown): boolean => {
 }
 
 /**
+ * 是否为 Promise
+ */
+export const __isPromise = (p: unknown): boolean => {
+  return p.constructor === Promise
+}
+
+/**
  * 查看 key 是不是在这个对象上
  */
 const hasOwnProperty = Object.prototype.hasOwnProperty

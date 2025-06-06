@@ -13,21 +13,53 @@
 </body>
 <script type="module">
   // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
-  // import { createRenderer, render, h, Text, Fragment, reactive, ref, KeepAlive, onMounted } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref, defineAsyncComponent, onMounted } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
   // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
-  import { render, h, Text, Fragment, reactive, ref, KeepAlive, onMounted } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref, defineAsyncComponent, onMounted } from '../../packages/runtime-dom/dist/runtime-dom.js'
 
   // ------------------------------------------------ 测试 Async Component ------------------------------------------------
+  // Vue 3 异步组件原理: 先用注释节点占位, 加载完成后再渲染 (类似于图片懒加载)
+  // 给予状态来实现, loaded ? h(组件) : h(空节点)
 
-  const C1 = {
-    name: 'C1',
-    setup() {
-      onMounted(() => console.log('C1 mounted'))
-      return () => h('div', 'C1')
+  // const importComp = import('../components/test-async-component.js')
+  // importComp 是一个 Promise
+  // const c1 = defineAsyncComponent(() => importComp)
+
+  // 3s 加载异步组件
+  import importComp from '../components/test-async-component.js'
+  // const c1 = defineAsyncComponent(() => new Promise(resolve => setTimeout(() => resolve(importComp), 3000)))
+  let loadCount = 0
+  const c1 = defineAsyncComponent({
+    loader: () => {
+      return new Promise((resolve, reject) => {
+        setTimeout(() => {
+          const hanler = ++loadCount == 3 ? resolve : reject
+          hanler(importComp)
+        }, 3000)
+      })
+    },
+    timeout: 1000,
+    errorComponent: {
+      render() {
+        return h('div', 'error 组件')
+      }
+    },
+    delay: 500,
+    loadingComponent: {
+      render() {
+        return h('div', 'loading 组件')
+      }
+    },
+    onError(err, retry, fail, attempts) {
+      console.log('加载失败, 1s 后准备重试加载', `(${ attempts })`)
+      setTimeout(() => {
+        console.log('重试加载...')
+        retry()
+      }, 1000);
     }
-  }
+  })
 
-  // render(h(KeepAlive, keepAliveProps, { default: () => h(C1, { key: 'C1' }) }), app)
+  render(h(c1), app)
   // ------------------------------------------------ 测试 Async Component ------------------------------------------------
 </script>
 </html>
