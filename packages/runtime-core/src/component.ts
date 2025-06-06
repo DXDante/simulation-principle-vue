@@ -29,7 +29,8 @@ export const createComponentInstance = (vnode, parent) => {
     // component1 -> component2 -> component3, 后代的所有组件 provide 都一样, 因为每个组件的 provide 取自父级
     // parent = {}, child = 引用 parent 的
     // child 增加 provide, 创建拷贝对象再赋值 const newProvides = Object.create(引用 parent 的), newProvides[key] = value
-    provides: parent ? parent.provides : Object.create(null)
+    provides: parent ? parent.provides : Object.create(null),
+    ctx: {} as Record<string, any> // 如果是 KeepAlive 组件, 就将 DOM api 放入到这个属性上
   }
 
   // // 组件状态, 拿到数据创建响应式

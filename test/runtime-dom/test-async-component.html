@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Async Component</title>
+  <link rel="stylesheet" href="../../common/reset-default.css">
+  <link rel="stylesheet" href="../../common/common.css">
+  <link rel="stylesheet" href="../../common/index.css">
+</head>
+<body>
+  <div id="app"></div>
+</body>
+<script type="module">
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref } from '/node_modules/vue/dist/vue.runtime.esm-browser.prod.js'
+  // import { createRenderer, render, h, Text, Fragment, reactive, ref, KeepAlive, onMounted } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
+  import { render, h, Text, Fragment, reactive, ref, KeepAlive, onMounted } from '../../packages/runtime-dom/dist/runtime-dom.js'
+
+  // ------------------------------------------------ 测试 Async Component ------------------------------------------------
+
+  const C1 = {
+    name: 'C1',
+    setup() {
+      onMounted(() => console.log('C1 mounted'))
+      return () => h('div', 'C1')
+    }
+  }
+
+  // render(h(KeepAlive, keepAliveProps, { default: () => h(C1, { key: 'C1' }) }), app)
+  // ------------------------------------------------ 测试 Async Component ------------------------------------------------
+</script>
+</html>

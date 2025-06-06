@@ -6,6 +6,7 @@ import { ReactiveEffect } from "@vue/reactivity"
 import { queueJob } from "./scheduler"
 import { createComponentInstance, setupComponent } from "./component"
 import { invokeArray } from "./apiLifeCycle"
+import { isKeepAlive } from "./components/Keepalive"
 
 /**
  * createRenderer 可跨平台, 它不关心如何渲染
@@ -78,12 +79,19 @@ export const createRenderer = (renderOptions) => {
   }
 
   /** 移除 DOM **/
-  const unMount = (vnode) => {
+  const unMount = (vnode, parentComponent) => {
     const { type, children, el, shapeFlag, component, transition } = vnode
-    const performRemove = () => { hostRemove(el) }
+    const performRemove = () => {
+      hostRemove(el)
+    }
 
+    // KeepAlive 组件使用, 不需要被真的卸载, 就走 KeepAlive 中的失活逻辑
+    if (shapeFlag & ShapeFlags.COMPONENT_SHOULD_KEEP_ALIVE) {
+      parentComponent.ctx.deactivated(vnode)
+      return
+    }
     if (type === Fragment) {
-      unMountChildren(children)
+      unMountChildren(children, parentComponent)
       return
     }
     // Teleport 组件内部做移除
@@ -93,7 +101,7 @@ export const createRenderer = (renderOptions) => {
     }
     // 组件的卸载是移除 render 函数返回的虚拟节点对应的 DOM
     if (shapeFlag & ShapeFlags.COMPONENT) {
-      unMount(component.subTree)
+      unMount(component.subTree, parentComponent)
       return
     }
 
@@ -107,9 +115,9 @@ export const createRenderer = (renderOptions) => {
   }
 
   /** 移除子元素 DOM **/
-  const unMountChildren = (children) => {
+  const unMountChildren = (children, parentComponent) => {
     for (let i = 0; i < children.length; i++) {
-      unMount(children[i])
+      unMount(children[i], parentComponent)
     }
   }
   /************************************************************ 元素、节点操作 ************************************************************/
@@ -151,18 +159,36 @@ export const createRenderer = (renderOptions) => {
   const processComponent = (n1, n2, container, anchor, parentComponent) => {
     // 挂载组件
     if (n1 == null) {
+      // 如果是缓存组件, 走 KeepAlive 中的激活方法
+      if (n2.shapeFlag & ShapeFlags.COMPONENT_KEPT_ALIVE) {
+        parentComponent.ctx.activated(n2, container, anchor)
+        return
+      }
+
       mountComponent(n2, container, anchor, parentComponent)
+      return
     }
     // 更新组件
-    else {
-      updateComponent(n1, n2, container, anchor)
-    }
+    updateComponent(n1, n2, container, anchor)
   }
   
   /** 挂载组件 **/
   const mountComponent = (vnode, container, anchor, parentComponent) => {
     // 1) 创建组件实例, 组件节点保存当前组件实例
     const instance = (vnode.component = createComponentInstance(vnode, parentComponent))
+    // 1.1) KeepAlive 组件使用, 当判断组件是 KeepAlive 时, 增加一些操作 DOM 的 api
+    if (isKeepAlive(vnode)) {
+      instance.ctx.renderer = {
+        // 创建元素, 创建缓存 DOM 的元素(盒子)时需要, 就是内部创建 1 个 div, 来缓存 DOM
+        createElement: hostCreateElement,
+        // 元素的移动 (取缓存虚拟节点的组件实例的子树上的 DOM 元素, 需要把之前渲染的 DOM 放入到这个缓存的 div 中)
+        move(vnode, container, anchor?) {
+          hostInsert(vnode.component.subTree.el, container, anchor)
+        },
+        // 组件卸载 (如果组件切换需要将现在容器中的元素移除)
+        unMount
+      }
+    }
     // 2) 组件实例初始化属性
     setupComponent(instance)
     // 3) 创建 Effect, 副作用函数调用 render 方法执行, 使用到的数据做依赖收集, render 返回的虚拟节点挂载到指定容器
@@ -242,14 +268,14 @@ export const createRenderer = (renderOptions) => {
     instance.next = null
     // 复用虚拟节点, 把新的赋值
     instance.vnode = next
-    updateProps(instance, instance.props, next.props)
+    updateProps(instance, instance.props, next.props || {})
     // 更新插槽
     Object.assign(instance.slots, next.children)
   }
 
   /** 更新组件 **/
   const updateComponent = (n1, n2, container, anchor) => {
-    console.log('组件准备更新: n1, n2', n1, n2);
+    // console.log('组件准备更新: n1, n2', n1, n2);
     // 复用组件实例
     const instance = (n2.component = n1.component)
 
@@ -276,7 +302,7 @@ export const createRenderer = (renderOptions) => {
     // 前后属性集完全相同
     if (prevProps === nextProps) { return false }
     // 对比属性是否有变化
-    return hasPropsChange(prevProps, nextProps)
+    return hasPropsChange(prevProps, nextProps || {})
   }
 
   /** 更新组件 props **/
@@ -394,7 +420,7 @@ export const createRenderer = (renderOptions) => {
     // 1) 新的是文本, 老的是数组移除老的
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        unMountChildren(c1)
+        unMountChildren(c1, parentComponent)
       }
 
       // 2) 新的是文本, 老的也是文本, 内容不相同替换
@@ -409,7 +435,7 @@ export const createRenderer = (renderOptions) => {
       }
       // 4) 老的是数组, 新的不是数组, 移除老的子节点
       else {
-        unMountChildren(c1)
+        unMountChildren(c1, parentComponent)
       }
     }
     // 5) 老的是文本, 新的是空
@@ -522,7 +548,7 @@ export const createRenderer = (renderOptions) => {
       if (i <= e1) {
         // 
         while(i <= e1) {
-          unMount(c1[i])
+          unMount(c1[i], parentComponent)
           i++
         }
         // // 可优化为, 直接截取旧 children 要删除的部分
@@ -564,7 +590,7 @@ export const createRenderer = (renderOptions) => {
         const newIndex = keyToNewIndexMap.get(vnode.key)
         // 找不到的删除
         if (newIndex == undefined) {
-          unMount(vnode)
+          unMount(vnode, parentComponent)
         }
         // 找到了的更新(新旧比对后更新属性, 又递归的比对该节点的儿子节点集)
         else {
@@ -624,7 +650,7 @@ export const createRenderer = (renderOptions) => {
 
     // 旧节点"元素/key" 不同于新节点, 移除老的 DOM, 初始化新的 DOM
     if (n1 && !isSameVnode(n1, n2)) {
-      unMount(n1)
+      unMount(n1, parentComponent)
       n1 = null // 就会执行后续的 n2 的初始化
     }
 
@@ -680,7 +706,7 @@ export const createRenderer = (renderOptions) => {
     if (vnode === null) {
       // 我要移除当前容器中的dom元素
       if (container._vnode) {
-        unMount(container._vnode)
+        unMount(container._vnode, null)
       }
       return
     }

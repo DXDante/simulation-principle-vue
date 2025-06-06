@@ -1,5 +1,6 @@
 import { getCurrentInstance } from "../component"
 import { h } from "../h"
+import { Text } from '../createVNode'
 
 // transitionend 事件在 CSS 完成过渡后触发, CSS 过渡完成事件
 
@@ -94,7 +95,7 @@ const BaseTransitionImple = {
       const { onBeforeEnter, onEnter, onLeave } = props
       // 拿到插槽内容, 调用方法
       const vnode = slots.default && slots.default()
-      if (!vnode) { return }
+      if (!vnode) { return h(Text, '') }
 
       // 渲染前 (有节点离开) 和 渲染后 (有节点进入)
       // 把钩子函数赋值到插槽的虚拟节点上

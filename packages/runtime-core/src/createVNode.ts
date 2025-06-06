@@ -44,7 +44,8 @@ export const createVNode = (type, props, children?, patchFlag?) => {
     el: null, // 每个虚拟节点都对应一个真实节点, 用来存放真实节点, 后续更新的时候会产生新的虚拟节点, 比较差异更新真实 DOM
     shapeFlag,
     ref: props?.ref,
-    patchFlag
+    patchFlag,
+    transition: null
   }
 
   if (children) {
