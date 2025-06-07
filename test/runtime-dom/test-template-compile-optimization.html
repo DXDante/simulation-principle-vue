@@ -3,17 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Async Component</title>
+  <title>模板编译优化</title>
   <link rel="stylesheet" href="../../common/reset-default.css">
   <link rel="stylesheet" href="../../common/common.css">
   <link rel="stylesheet" href="../../common/index.css">
 </head>
 <body>
   <div id="app"></div>
+  <!------ 不稳定结构 ------>
+  <!--
+  <div>
+    <div v-if="flag">
+      <span>{{ content }}</span>
+    </div>
+    ━━━━━ 前后块级父节点元素类型不一致 ━━━━━
+    <p v-else>
+      <span>{{ content }}</span>
+    </p>
+  </div>
+  最外层 div 是 block0, 收集动态的节点只会收集到 span, dynamicChildren 收集时无视了层级, 只收集动态的节点, 就会忽略前后变化的第 2 层的 div / p 元素
+  改变了 DOM 结构就会导致收集异常, 所以 block 就嵌套了 block, 最外层收集内层 block1 / block2, 会标识一个 key, 下次更新发现 block 的 key 不一样, 直接替换 block
+  -->
+  <!--
+  <div>
+    <div v-if="flag">
+      <span>{{ content }}</span>
+    </div>
+    ━━━━━ 前后块级子节点不一致 ━━━━━
+    <div v-else>
+      <p>
+        <span>{{ content }}</span>
+      </p>
+    </div>
+  </div>
+  -->
+  <!--
+  <div>
+    <div></div>
+    <div v-for(item in fruits) :key="item"></div>
+  </div>
+  ━━━━━ vFor 的 div 会被包裹一层 Fragment, 这个 Fragment 会被收集父级块中, vFor 的 div 就不会被收集了, 因为前后渲染数量不确定, 无法靶向更新, 之后更新就只更新 Fragment 这块 ━━━━━
+  -->
+  <!------ 不稳定结构 ------>
 </body>
 <script type="module">
   import { createRenderer, render, h, Text, ref, onMounted,
-    renderList as _renderList,
+    // renderList as _renderList,
     Fragment as _Fragment,
     openBlock as _openBlock,
     createElementBlock as _createElementBlock,
@@ -21,14 +56,81 @@
     createElementVNode as _createElementVNode,
     reactive,
     toRefs
-   } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+  //  } from '/node_modules/vue/dist/vue.runtime.esm-browser.js'
+   } from '../../packages/runtime-dom/dist/runtime-dom.js'
   // import { renderOptions } from '../../packages/runtime-dom/dist/runtime-dom.js'
   // import { render, h, Text, Fragment, reactive, ref, onMounted } from '../../packages/runtime-dom/dist/runtime-dom.js'
 
   // ------------------------------------------------ 测试 模板编译优化 ------------------------------------------------
   // 如果在使用 Vue 3 的时候, 采用 JSX / h 的写法, 不会得到模板编译的优化, 那么 Diff 算法比对就是全量比对, 没有绑定任何动态数据的节点也会比对, 浪费一定的性能
 
-  // render(h(c1), app)
+  const component = {
+    // -------------------- DOM 结构不更改 --------------------
+    setup() {
+      const state = reactive({ name: 'Dante' })
+      setTimeout(() => {
+        Object.assign(state, { name: 'Dante Master' })
+      }, 2000);
+      return {
+        ...toRefs(state)
+      }
+    },
+    render(_ctx) {
+      // _ctx 自动属性解包, 就是用了 proxyRefs
+      const vnode =
+        (_openBlock(),
+        _createElementBlock("div", null, [
+          _createElementVNode("h1", null, 'Hello Dante'),
+          _createElementVNode(
+            "span",
+            null,
+            _toDisplayString(_ctx.name),
+            1 /* TEXT */ // 模板编译, Vue 自动加上 patchFlag 标识
+          )
+        ]));
+      console.log('vnode:', vnode)
+      return vnode;
+    }
+    // -------------------- DOM 结构不更改 --------------------
+
+    // -------------------- DOM 更改 --------------------
+    // setup() {
+    //   const state = reactive({ flag: true, a: 1, fruits: 10 });
+    //   setTimeout(() => {
+    //     state.flag = false;
+    //   }, 1000);
+    //   return {
+    //     ...toRefs(state),
+    //   };
+    // },
+    // render(_ctx) {
+    //   // proxyRefs
+    //   const vnode =
+    //     (_openBlock(),
+    //     _createElementBlock("div", null, [
+    //       _createElementVNode("div"),
+    //       (_openBlock(),
+    //       _createElementBlock(
+    //         _Fragment,
+    //         null,
+    //         _renderList(3, (item) => {
+    //           return _createElementVNode(
+    //             "div",
+    //             null,
+    //             _toDisplayString(item),
+    //             1 /* TEXT */
+    //           );
+    //         }),
+    //         64 /* STABLE_FRAGMENT */
+    //       )),
+    //     ]));
+    //   console.log(vnode);
+    //   return vnode;
+    // }
+    // -------------------- DOM 更改 --------------------
+  }
+
+  render(h(component), app)
   // ------------------------------------------------ 测试 模板编译优化 ------------------------------------------------
 </script>
 </html>

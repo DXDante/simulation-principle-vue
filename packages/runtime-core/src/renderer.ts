@@ -1,4 +1,4 @@
-import { __hasOwnProperty, __isArray, __isBoolean, __isNull, __isNumber, __isString, __isUndefined, ShapeFlags } from "@vue/shared"
+import { __hasOwnProperty, __isArray, __isBoolean, __isNull, __isNumber, __isString, __isUndefined, PatchFlags, ShapeFlags } from "@vue/shared"
 import { createVNode, Fragment, isSameVnode, Text } from "./createVNode"
 import { getSequence } from './seq'
 import { isRef, reactive } from "@vue/reactivity"
@@ -45,7 +45,7 @@ export const createRenderer = (renderOptions) => {
     }
     // 多个节点
     else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-      mountChildren(children, el, parentComponent)
+      mountChildren(children, el, anchor, parentComponent)
     }
 
     // 插入前 (Transition 组件使用)
@@ -59,22 +59,24 @@ export const createRenderer = (renderOptions) => {
 
   /** 处理子节点集为值的情况, 直接用于渲染的内容时, 需要转换为虚拟节点 **/
   const normalize = (children) => {
-    for(let i = 0; i < children.length; i++) {
-      let child = children[i]
-      if (__isString(child) || __isNumber(child) || __isBoolean(child) || __isUndefined(child) || __isNull(child)) {
-        children[i] = createVNode(Text, null, String(child))
+    if (__isArray(children)) {
+      for(let i = 0; i < children.length; i++) {
+        let child = children[i]
+        if (__isString(child) || __isNumber(child) || __isBoolean(child) || __isUndefined(child) || __isNull(child)) {
+          children[i] = createVNode(Text, null, String(child))
+        }
       }
     }
     return children
   }
 
   /** 挂载子元素 **/
-  const mountChildren = (children, container, parentComponent) => {
+  const mountChildren = (children, container, anchor, parentComponent) => {
     // 这里是解决 children 中存放的用于渲染的值时, 把值转换为文本节点
     normalize(children)
     for(let i = 0; i < children.length; i++) {
       let child = children[i]
-      patch(null, child, container, parentComponent)
+      patch(null, child, container, anchor, parentComponent)
     }
   }
 
@@ -142,14 +144,14 @@ export const createRenderer = (renderOptions) => {
 
   /************************************************************ 处理 Fragment 流程 ************************************************************/
   /** 处理 Fragment 流程 **/
-  const processFragment = (n1, n2, container, parentComponent) => {
+  const processFragment = (n1, n2, container, anchor, parentComponent) => {
     // 初始挂载子节点
     if (n1 == null) {
-      mountChildren(n2.children, container, parentComponent)
+      mountChildren(n2.children, container, anchor, parentComponent)
     }
     // 对比更新子节点
     else {
-      patchChildren(n1, n2, container, parentComponent)
+      patchChildren(n1, n2, container, anchor, parentComponent)
     }
   }
   /************************************************************ 处理 Fragment 流程 ************************************************************/
@@ -352,12 +354,12 @@ export const createRenderer = (renderOptions) => {
     }
     // 比对差异更新, 后续处理子节点相关
     else {
-      patchElement(n1, n2, container, parentComponent)
+      patchElement(n1, n2, container, anchor, parentComponent)
     }
   }
 
   /** 处理 vnode **/
-  const patchElement = (n1, n2, container, parentComponent) => {
+  const patchElement = (n1, n2, container, anchor, parentComponent) => {
     // 1) 比较元素的差异, 肯定就是复用 DOM
     // 2) 比较元素的属性、元素子节点
 
@@ -365,8 +367,30 @@ export const createRenderer = (renderOptions) => {
     const { props: oldProps = {} } = n1
     const { props: newProps = {} } = n2
 
-    patchProps(oldProps, newProps, el)
-    patchChildren(n1, n2, el, parentComponent)
+    // 3) 靶向更新比较 (在比较元素的时候, 针对某个属性去比较, 通过模板编译添加 patchFlag 标识, 我们知道元素上哪些东西会变化, 就针对哪些东西做特定比较更新, 不用全量 Diff 的更新)
+    const { patchFlag, dynamicChildren } = n2
+    // 标识为属性相关的
+    if (patchFlag) {
+      // if (patchFlag & PatchFlags.STYLE) {
+      // }
+      // if (patchFlag & PatchFlags.CLASS) {
+      // }
+      // 标识为文本, 儿子就是文本字符串, 不相等, 直接更新 DOM 替换
+      if (patchFlag && patchFlag & PatchFlags.TEXT && n1.children !== n2.children) {
+        return hostSetElementText(el, n2.children)
+      }
+    } else {
+      patchProps(oldProps, newProps, el)
+    }
+
+    // 收集的有变化的节点
+    // 线性比对
+    if (dynamicChildren) {
+      return patchBlockChildren(n1, n2, el, anchor, parentComponent)
+    }
+
+    // 全量递归 Diff
+    patchChildren(n1, n2, el, anchor, parentComponent)
   }
 
   /** 处理父级 props(class, style, 事件, 其他属性), el 是指父级 element **/
@@ -384,8 +408,17 @@ export const createRenderer = (renderOptions) => {
     }
   }
 
+  /** 更新块里的儿子(dynamicChildren 标识位收集了动态绑定属性、事件等等的子元素、后代元素) **/
+  const patchBlockChildren = (n1, n2, el, anchor, parentComponent) => {
+    const { dynamicChildren: prevDynamicChildren } = n1
+    const { dynamicChildren: nextDynamicChildren } = n2
+    for(let i = 0; i < nextDynamicChildren.length; i++) {
+      patch(prevDynamicChildren[i], nextDynamicChildren[i], el, anchor, parentComponent)
+    }
+  }
+
   /** 处理子元素, el 是指父级 element **/
-  const patchChildren = (n1, n2, el, parentComponent) => {
+  const patchChildren = (n1, n2, el, anchor, parentComponent) => {
     // 子元素种类: text, [text, text], [vnode, vnode], null
     // 子元素对比:
     // [新的]      [旧的]          [操作方式]
@@ -413,9 +446,7 @@ export const createRenderer = (renderOptions) => {
     const { children: c2, shapeFlag: shapeFlag } = n2
 
     // 这里是解决 children 中存放的用于渲染的值时, 把值转换为文本节点
-    if (__isArray(c2)) {
-      normalize(c2)
-    }
+    normalize(c2)
 
     // 1) 新的是文本, 老的是数组移除老的
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
@@ -444,7 +475,7 @@ export const createRenderer = (renderOptions) => {
 
       // 6) 老的是文本, 新的是数组
       if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-        mountChildren(c2, el, parentComponent)
+        mountChildren(c2, el, anchor, parentComponent)
       }
     }
   }
@@ -662,7 +693,7 @@ export const createRenderer = (renderOptions) => {
         break;
       // Fragment 类型(相当于文档碎片, Vue 2 中必须要用根节点, Vue 3 则可不必, V3 多节点就是基于 Fragment 实现的)
       case Fragment:
-        processFragment(n1, n2, container, parentComponent)
+        processFragment(n1, n2, container, anchor, parentComponent)
         break;
       default:
         // 对元素的处理
