@@ -1,13 +1,11 @@
 import { proxyHandlers } from './baseHandler'
-import { __isArray, __isObject } from '@vue/shared'
+import { __isAnyObject } from '@vue/shared'
 import { ReactiveFlags } from './constants'
 
 /**
  * 代理对象缓存集 (被代理的对象 和 代理对象的映射表)
  */
 const proxyCacheMap = new WeakMap()
-
-const isObjectOrArray = (value) => __isObject(value) && __isArray(value)
 
 /**
  * 创建响应式对象
@@ -16,7 +14,7 @@ const isObjectOrArray = (value) => __isObject(value) && __isArray(value)
  */
 const createReactiveObject = (target) => {
   // 不是对象/数组直接返回原值
-  if (!(isObjectOrArray(target))) { return target }
+  if (!(__isAnyObject(target))) { return target }
 
   // 检查源数据是否是代理对象 (访问指定的属性时, 能走 getter 说明这个对象是被代理过的, 直接返回, 防止多次代理)
   if (target[ReactiveFlags.IS_REACTIVE]) { return target }
@@ -46,7 +44,7 @@ export const reactive = (target) => {
  * @returns 
  */
 export const toReactive = (value) => {
-  return __isObject(value) ? reactive(value) : value
+  return __isAnyObject(value) ? reactive(value) : value
 }
 
 /**

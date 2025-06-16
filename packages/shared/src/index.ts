@@ -90,6 +90,13 @@ export const __isPromise = (p: unknown): boolean => {
 }
 
 /**
+ * 是否为任意形式的对象
+ */
+export const __isAnyObject = (p: unknown): boolean => {
+  return typeof p === 'object' && p !== null
+}
+
+/**
  * 查看 key 是不是在这个对象上
  */
 const hasOwnProperty = Object.prototype.hasOwnProperty
