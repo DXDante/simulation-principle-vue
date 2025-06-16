@@ -61,7 +61,7 @@ export const computed = (getterOrOptions: Computed): ComputedRefImpl => {
   let getter, setter
 
   if (onlyGetter) {
-    getter = onlyGetter
+    getter = getterOrOptions
     setter = defaultSetter
   } else {
     const { get, set } = getterOrOptions as ComputedOptions
